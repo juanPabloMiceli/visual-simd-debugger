@@ -1,0 +1,51 @@
+.App {
+  /*text-align: center;*/
+
+  background-color: #282c34;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  min-height: 100vh;
+  min-width: 100vw;
+}
+/*
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+*/
+
+#code{
+    position: absolute;
+    top: 5vh;
+    left: 0px;
+
+    min-height: 94vh;
+    min-width: 50vw;
+    overflow-y: hidden;
+    resize: none;
+}
+
+#submitButton{
+  position: absolute;
+  top: 2vh;
+  left: 20vh;
+}
+
+#writeBelow{
+  color: #FFF;
+  position: absolute;
+  top: -7px;
+  font-size: 20px;
+}
