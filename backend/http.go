@@ -7,10 +7,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/exec"
+	"path"
+	"runtime"
 )
 
-type codeData struct {
-	CodeText string `json:"CodeText"`
+type cellData struct {
+	ID   int    `json:"id"`
+	Code string `json:"code"`
+}
+
+type cellsData struct {
+	CellsData []cellData `json:"CellsData"`
 }
 
 func enableCors(w *http.ResponseWriter) {
@@ -21,13 +28,15 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	enableCors(&w)
 
-	_codeData := codeData{}
+	// req.ParseForm()
+	// fmt.Println(req.Form)
+	_cellsData := cellsData{}
 
 	dec := json.NewDecoder(req.Body)
 
 	dec.DisallowUnknownFields()
 
-	decodeErr := dec.Decode(&_codeData)
+	decodeErr := dec.Decode(&_cellsData)
 
 	if decodeErr != nil {
 		fmt.Println("Could't read data from the server properly.")
@@ -35,14 +44,22 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fileErr := ioutil.WriteFile("output.asm", []byte(_codeData.CodeText), 0644)
+	fileErr := ioutil.WriteFile("output.asm", []byte(_cellsData.CellsData[0].Code), 0644)
 	if fileErr != nil {
 		println("Could't create file properly.")
 		w.WriteHeader(500)
 		return
 	}
 
-	nasmCmd := exec.Command("/usr/bin/nasm", "-f", "elf64", "-g", "-F", "DWARF", "output.asm")
+	nasmPath, nasmPathErr := exec.LookPath("nasm")
+
+	if nasmPathErr != nil {
+		fmt.Println("Could't find nasm executable path")
+		w.WriteHeader(500)
+		return
+	}
+
+	nasmCmd := exec.Command(nasmPath, "-f", "elf64", "-g", "-F", "DWARF", "output.asm")
 	var stderr bytes.Buffer
 	nasmCmd.Stderr = &stderr
 	nasmErr := nasmCmd.Run()
@@ -53,7 +70,15 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	linkingCmd := exec.Command("/usr/bin/ld", "-o", "output", "output.o")
+	linkerPath, linkerPathErr := exec.LookPath("ld")
+
+	if linkerPathErr != nil {
+		fmt.Println("Could't find linker executable path")
+		w.WriteHeader(500)
+		return
+	}
+
+	linkingCmd := exec.Command(linkerPath, "-o", "output", "output.o")
 	linkingCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Run()
 
@@ -62,8 +87,15 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
+	_, filename, _, ok := runtime.Caller(0)
 
-	exeCmd := exec.Command("/home/juampi/probando_go/backend/output")
+	if !ok {
+		fmt.Println("Could't find server path")
+		w.WriteHeader(500)
+		return
+	}
+	fullPath := path.Join(path.Dir(filename), "output")
+	exeCmd := exec.Command(fullPath)
 	var out bytes.Buffer
 	exeCmd.Stdout = &out
 	exeCmd.Stderr = &stderr
