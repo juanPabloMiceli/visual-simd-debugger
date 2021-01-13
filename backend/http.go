@@ -12,24 +12,40 @@ import (
 )
 
 type cellData struct {
-	ID   int    `json:"id"`
-	Code string `json:"code"`
+	ID     int    `json:"id"`
+	Code   string `json:"code"`
+	Output string `json:"output"`
 }
 
 type cellsData struct {
 	CellsData []cellData `json:"CellsData"`
 }
 
+type responseObj struct {
+	ConsoleOut string
+}
+
 func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
+
+func response(w *http.ResponseWriter, obj interface{}) {
+
+	responseJSON, err := json.Marshal(obj)
+
+	if err != nil {
+		panic(err)
+	}
+
+	(*w).Header().Set("Content-Type", "application/json")
+	(*w).WriteHeader(http.StatusOK)
+	(*w).Write(responseJSON)
 }
 
 func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	enableCors(&w)
 
-	// req.ParseForm()
-	// fmt.Println(req.Form)
 	_cellsData := cellsData{}
 
 	dec := json.NewDecoder(req.Body)
@@ -39,23 +55,21 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	decodeErr := dec.Decode(&_cellsData)
 
 	if decodeErr != nil {
-		fmt.Println("Could't read data from the server properly.")
-		w.WriteHeader(500)
+		response(&w, responseObj{"Could't read data from the server properly."})
 		return
 	}
 
 	fileErr := ioutil.WriteFile("output.asm", []byte(_cellsData.CellsData[0].Code), 0644)
 	if fileErr != nil {
-		println("Could't create file properly.")
-		w.WriteHeader(500)
+		response(&w, responseObj{"Could't create file properly."})
 		return
 	}
 
 	nasmPath, nasmPathErr := exec.LookPath("nasm")
 
 	if nasmPathErr != nil {
+		response(&w, responseObj{"Could't find nasm executable path"})
 		fmt.Println("Could't find nasm executable path")
-		w.WriteHeader(500)
 		return
 	}
 
@@ -65,16 +79,16 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	nasmErr := nasmCmd.Run()
 
 	if nasmErr != nil {
-		fmt.Println(fmt.Sprint(nasmErr) + ": " + stderr.String())
-		w.WriteHeader(500)
+		response(&w, responseObj{stderr.String()})
+		fmt.Println("this:" + fmt.Sprint(nasmErr) + ": " + stderr.String())
 		return
 	}
 
 	linkerPath, linkerPathErr := exec.LookPath("ld")
 
 	if linkerPathErr != nil {
+		response(&w, responseObj{"Could't find linker executable path"})
 		fmt.Println("Could't find linker executable path")
-		w.WriteHeader(500)
 		return
 	}
 
@@ -83,15 +97,15 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	linkingErr := linkingCmd.Run()
 
 	if linkingErr != nil {
+		response(&w, responseObj{stderr.String()})
 		fmt.Println(fmt.Sprint(linkingErr) + ": " + stderr.String())
-		w.WriteHeader(500)
 		return
 	}
 	_, filename, _, ok := runtime.Caller(0)
 
 	if !ok {
+		response(&w, responseObj{"Could't find server path"})
 		fmt.Println("Could't find server path")
-		w.WriteHeader(500)
 		return
 	}
 	fullPath := path.Join(path.Dir(filename), "output")
@@ -102,13 +116,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	exeErr := exeCmd.Run()
 
 	if exeErr != nil {
+		response(&w, responseObj{stderr.String()})
 		fmt.Println(fmt.Sprint(exeErr) + ": " + stderr.String())
-		w.WriteHeader(500)
 		return
 	}
 
+	response(&w, responseObj{out.String()})
+
 	fmt.Println(out.String())
-	w.WriteHeader(200)
 }
 
 func main() {

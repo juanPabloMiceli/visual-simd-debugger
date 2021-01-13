@@ -24,18 +24,6 @@ export default class TextInput extends Component {
 	}
 	
 
-	// onSubmitHandler = (e) => {
-	// 	e.preventDefault()
-	// 	let data =  {CodeText: this.state.code}
-	// 	axios.post(local_host + "/codeSave", JSON.stringify(data))
-	// 	.then(response => {
-	// 		console.log(response)
-	// 	})
-	// 	.catch(error => {
-	// 		console.log(error)
-	// 	})
-	// }
-
 	OnCodeChangeHandler = (e) => {
 		this.setState({
 			code: e.target.value

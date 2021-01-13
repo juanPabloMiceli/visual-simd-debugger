@@ -8,14 +8,16 @@ class TextOutput extends Component {
 		autosize(this.textarea)
 	}
 
-	constructor(){
-		super()
-		this.state={
-			id: 0,
-			outputText: ""
-		}
+	componentDidUpdate(){
+		autosize.update(this.textarea)
 	}
 
+	constructor(props){
+		super(props)
+		this.state={
+			id: 0
+		}
+	}
 	
 
 	render() {
@@ -34,7 +36,7 @@ class TextOutput extends Component {
 				ref={c => this.textarea = c}
 				rows={1} 
 				id="output_text" 
-				value={this.state.outputText}
+				value={this.props.text}
 				placeholder={"Results go here"}
 				/>
 			</div>

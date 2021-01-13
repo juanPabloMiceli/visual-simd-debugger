@@ -10,31 +10,8 @@ axios.defaults.headers.common = {
 
 class Cell extends Component {
 
-	constructor(props){
-		super(props)
-		this.state={
-			code: ''
-		}
-
-	}
-
 	updateCodeFromChild = (_code) => {
-		this.setState({code: _code})
 		this.props.parentUpdateCode(this.props.id, _code)
-	}
-
-    onSubmitHandler = (e) => {
-		e.preventDefault()
-		let data =  {CodeText: this.state.code}
-		axios.post(local_host + "/codeSave", JSON.stringify(data))
-		.then(response => {
-			console.log("Salio bien")
-			console.log(response)
-		})
-		.catch(error => {
-			console.log(error)
-			console.log("Salio mal")
-		})
 	}
 
 
@@ -42,8 +19,7 @@ class Cell extends Component {
         return (
             <div id={'Cell'}>
                 <TextInput parentUpdateCode={this.updateCodeFromChild}/>
-                <TextOutput/>
-				<div><h3>{this.state.code}</h3></div>
+                <TextOutput text={this.props.output}/>
             </div>
         );
     }

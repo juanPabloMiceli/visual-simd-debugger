@@ -12,7 +12,8 @@ class App extends Component{
     super()
 
     this.state = {
-      CellsData: [{id:0, code: ''}]
+      CellsData: [{id:0, code: '', output: ''}],
+      totalCells: 1
     }
 
     
@@ -20,10 +21,14 @@ class App extends Component{
 
 
 	onSubmitHandler = (e) => {
-		e.preventDefault()
-		axios.post(local_host + "/codeSave", JSON.stringify(this.state))
+    e.preventDefault()
+		axios.post(local_host + "/codeSave", JSON.stringify({
+      CellsData: this.state.CellsData
+    }))
 		.then(response => {
-			console.log(response)
+      let copy = this.state.CellsData
+      copy[this.state.totalCells-1].output = response.data.ConsoleOut.replaceAll(String.fromCharCode(0), '')
+      this.setState({CellsData: copy})      
 		})
 		.catch(error => {
 			console.log(error)
@@ -33,8 +38,9 @@ class App extends Component{
   onNewCellHandler = (e) => {
     e.preventDefault()
     let len = this.state.CellsData.length
-    let joined = this.state.CellsData.concat({id: len, code:''})
-    this.setState({CellsData: joined})
+    let joined = this.state.CellsData.concat({id: len, code:'', output:''})
+    let newLen = this.state.totalCells + 1
+    this.setState({CellsData: joined, len: newLen})
   }
 
   onDelCellHandler = (e) => {
@@ -42,27 +48,27 @@ class App extends Component{
     let len = this.state.CellsData.length
     if(len > 1){
       let deleted = this.state.CellsData
+      let newLen = this.state.totalCells - 1
       deleted.pop()
-      this.setState({CellsData: deleted})
+      this.setState({CellsData: deleted, len: newLen})
     }
   }
 
   updateCodeFromChild = (id, _code) => {
     let copy = this.state.CellsData
-    copy[id] = {id: id,
-                code: _code}
+    copy[id].code = _code
     this.setState({CellsData: copy})
-    console.log(this.state.CellsData)
 	}
 
   render() {
-
+    
     let CellsComponents = this.state.CellsData.map(cell => 
       <div>
         <Cell 
           key={cell.id}
           id={cell.id}
           parentUpdateCode={this.updateCodeFromChild}
+          output={cell.output}
         />
       </div>)
     return (
@@ -71,10 +77,6 @@ class App extends Component{
         {CellsComponents}
 				<button className="btn btn-newCell" id="newCellButton" onClick={this.onNewCellHandler}>New Cell</button>
 				<button className="btn btn-DelCell" id="DelCellButton" onClick={this.onDelCellHandler}>Delete Cell</button>
-        {this.state.CellsData.map(data => 
-          <h3>
-            {data.code}
-          </h3>)}
       </div>
       
     );
