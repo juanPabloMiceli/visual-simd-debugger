@@ -9,16 +9,19 @@ import (
 	"os/exec"
 	"path"
 	"runtime"
+	"strings"
 )
 
-type cellData struct {
+//CellData ...
+type CellData struct {
 	ID     int    `json:"id"`
 	Code   string `json:"code"`
 	Output string `json:"output"`
 }
 
-type cellsData struct {
-	CellsData []cellData `json:"CellsData"`
+//CellsData ...
+type CellsData struct {
+	Data []CellData `json:"CellsData"`
 }
 
 type responseObj struct {
@@ -42,24 +45,68 @@ func response(w *http.ResponseWriter, obj interface{}) {
 	(*w).Write(responseJSON)
 }
 
+func notLastCell(currentIndex int, size int) bool {
+	return currentIndex < size-1
+}
+
+func notInData(index int, hasDataCell bool) bool {
+	return (index == 0 && !hasDataCell) || index != 0
+}
+
+func handleCellsData(obj *CellsData) string {
+	var resText string = ""
+	var hasDataCell bool = false
+	var startText string = "global _start\n"
+	startText += "section .text\n"
+	startText += "_start:\n"
+
+	for index, cellData := range obj.Data {
+		if cellData.Code != "" {
+			if index == 0 {
+				if strings.Contains(cellData.Code, ";data") {
+					cellData.Code = strings.Replace(cellData.Code, ";data", "section .data", 1)
+					hasDataCell = true
+				} else {
+					cellData.Code = startText + cellData.Code
+				}
+			}
+
+			if index == 1 && hasDataCell {
+				cellData.Code = startText + cellData.Code
+			}
+
+			resText += cellData.Code + "\n"
+
+			if notLastCell(index, len(obj.Data)) && notInData(index, hasDataCell) {
+				resText += "int 3\n"
+			}
+
+		}
+	}
+
+	return resText
+}
+
 func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	enableCors(&w)
 
-	_cellsData := cellsData{}
+	cellsData := CellsData{}
 
 	dec := json.NewDecoder(req.Body)
 
 	dec.DisallowUnknownFields()
 
-	decodeErr := dec.Decode(&_cellsData)
+	decodeErr := dec.Decode(&cellsData)
 
 	if decodeErr != nil {
 		response(&w, responseObj{"Could't read data from the server properly."})
 		return
 	}
 
-	fileErr := ioutil.WriteFile("output.asm", []byte(_cellsData.CellsData[0].Code), 0644)
+	var fileText string = handleCellsData(&cellsData)
+
+	fileErr := ioutil.WriteFile("output.asm", []byte(fileText), 0644)
 	if fileErr != nil {
 		response(&w, responseObj{"Could't create file properly."})
 		return
@@ -69,7 +116,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if nasmPathErr != nil {
 		response(&w, responseObj{"Could't find nasm executable path"})
-		fmt.Println("Could't find nasm executable path")
 		return
 	}
 
@@ -80,7 +126,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if nasmErr != nil {
 		response(&w, responseObj{stderr.String()})
-		fmt.Println("this:" + fmt.Sprint(nasmErr) + ": " + stderr.String())
 		return
 	}
 
@@ -88,7 +133,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if linkerPathErr != nil {
 		response(&w, responseObj{"Could't find linker executable path"})
-		fmt.Println("Could't find linker executable path")
 		return
 	}
 
@@ -98,14 +142,12 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if linkingErr != nil {
 		response(&w, responseObj{stderr.String()})
-		fmt.Println(fmt.Sprint(linkingErr) + ": " + stderr.String())
 		return
 	}
 	_, filename, _, ok := runtime.Caller(0)
 
 	if !ok {
 		response(&w, responseObj{"Could't find server path"})
-		fmt.Println("Could't find server path")
 		return
 	}
 	fullPath := path.Join(path.Dir(filename), "output")
@@ -115,15 +157,19 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	exeCmd.Stderr = &stderr
 	exeErr := exeCmd.Run()
 
-	if exeErr != nil {
-		response(&w, responseObj{stderr.String()})
-		fmt.Println(fmt.Sprint(exeErr) + ": " + stderr.String())
-		return
+	var responseString string = out.String()
+	if responseString != "" {
+		responseString += "\n"
 	}
 
-	response(&w, responseObj{out.String()})
+	if exeErr != nil {
+		responseString += fmt.Sprint(exeErr)
+	} else {
+		responseString += "exit status 0"
+	}
 
-	fmt.Println(out.String())
+	response(&w, responseObj{responseString})
+
 }
 
 func main() {

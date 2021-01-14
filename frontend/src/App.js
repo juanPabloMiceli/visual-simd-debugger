@@ -28,7 +28,7 @@ class App extends Component{
 		.then(response => {
       let copy = this.state.CellsData
       copy[this.state.totalCells-1].output = response.data.ConsoleOut.replaceAll(String.fromCharCode(0), '')
-      this.setState({CellsData: copy})      
+      this.setState({CellsData: copy})
 		})
 		.catch(error => {
 			console.log(error)
@@ -40,7 +40,7 @@ class App extends Component{
     let len = this.state.CellsData.length
     let joined = this.state.CellsData.concat({id: len, code:'', output:''})
     let newLen = this.state.totalCells + 1
-    this.setState({CellsData: joined, len: newLen})
+    this.setState({CellsData: joined, totalCells: newLen})
   }
 
   onDelCellHandler = (e) => {
@@ -50,7 +50,7 @@ class App extends Component{
       let deleted = this.state.CellsData
       let newLen = this.state.totalCells - 1
       deleted.pop()
-      this.setState({CellsData: deleted, len: newLen})
+      this.setState({CellsData: deleted, totalCells: newLen})
     }
   }
 
