@@ -20,10 +20,19 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+//XMMData ...
+type XMMData struct {
+	XmmID     string
+	XmmValues interface{}
+}
+
+//CellRegisters ...
+type CellRegisters []XMMData
+
 //ResponseObj ...
 type ResponseObj struct {
 	ConsoleOut string
-	CellRegs   []map[string]interface{} //Could be a slice of any of int or float types
+	CellRegs   []CellRegisters //Could be a slice of any of int or float types
 }
 
 func enableCors(w *http.ResponseWriter) {
@@ -43,12 +52,26 @@ func response(w *http.ResponseWriter, obj interface{}) {
 	(*w).Write(responseJSON)
 }
 
+func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhandler.XMMHandler, cellIndex int) CellRegisters {
+	cellRegisters := CellRegisters{}
+
+	for _, request := range cellsData.Requests[cellIndex] {
+		xmmData := XMMData{XmmID: request.XmmID, XmmValues: xmmHandler.GetXMMData(request.XmmID, request.DataFormat)}
+		cellRegisters = append(cellRegisters, xmmData)
+	}
+
+	return cellRegisters
+}
+
 func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 
-	res := ResponseObj{CellRegs: make([]map[string]interface{}, 0)}
+	res := ResponseObj{CellRegs: make([]CellRegisters, 0)}
+
+	cellIndex := 0
 
 	if cellsData.HasDataCell {
-		res.CellRegs = append(res.CellRegs, make(map[string]interface{}))
+		res.CellRegs = append(res.CellRegs, CellRegisters{})
+		cellIndex++
 	}
 
 	ptrace.Cont(pid, 0)
@@ -66,22 +89,15 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 		xmmSlice := fpPointer.XMMSpace[:]
 		xmmHandler := xmmhandler.NewXMMHandler(&xmmSlice)
 
-		fmt.Println("\nNueva celda")
-		xmmHandler.PrintAs("float64")
-		// res.CellRegs = append(res.CellRegs, xmmHandler.Xmm[0], xmmHandler.Xmm[1])
+		cellRegisters := getRequestedRegisters(cellsData, &xmmHandler, cellIndex)
+
+		// fmt.Println("\nNueva celda")
+		// xmmHandler.PrintAs("float64")
+		res.CellRegs = append(res.CellRegs, cellRegisters)
+		cellIndex++
 		ptrace.Cont(pid, 0)
 		syscall.Wait4(pid, &ws, syscall.WALL, nil)
 	}
-
-	ptrace.GetFPRegs(pid, &unixRegs)
-	fmt.Printf("\nAddress: %p\n", &unixRegs)
-	fpPointer := (*ptrace.FPRegs)(unsafe.Pointer(&unixRegs))
-	xmmSlice := fpPointer.XMMSpace[:]
-	xmmHandler := xmmhandler.NewXMMHandler(&xmmSlice)
-
-	fmt.Println("\nNueva celda")
-	xmmHandler.PrintAs("float64")
-	// res.CellRegs = append(res.CellRegs, xmmHandler.Xmm[0], xmmHandler.Xmm[1])
 
 	fmt.Printf("Exited: %v\n", ws.Exited())
 	fmt.Printf("Exited status: %v\n", ws.ExitStatus())

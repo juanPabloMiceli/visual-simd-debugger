@@ -4,35 +4,56 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"strconv"
 )
 
-//XmmBytes is the number of bytes inside a XMM register
-const XmmBytes = 16
+const (
+	//XMMBYTES is the number of bytes inside a XMM register
+	XMMBYTES = 16
 
-//SizeOfInt16 is the number of bytes inside an int16
-const SizeOfInt16 = 2
+	//XMMREGISTERS is the number of xmm registers in intel x86
+	XMMREGISTERS = 16
 
-//SizeOfInt32 is the number of bytes inside an int16
-const SizeOfInt32 = 4
+	//SIZEOFINT16 is the number of bytes inside an int16
+	SIZEOFINT16 = 2
 
-//SizeOfInt64 is the number of bytes inside an int16
-const SizeOfInt64 = 8
+	//SIZEOFINT32 is the number of bytes inside an int16
+	SIZEOFINT32 = 4
 
-//XmmRegisters is the number of xmm registers in intel x86
-const XmmRegisters = 16
+	//SIZEOFINT64 is the number of bytes inside an int16
+	SIZEOFINT64 = 8
+)
 
-//XMM ...
-type XMM struct {
-	Values []byte
-}
+const (
+	//INT8STRING is the string that will define we want to work with the xmm values as int 8
+	INT8STRING = "v16_int8"
+
+	//INT16STRING is the string that will define we want to work with the xmm values as int 16
+	INT16STRING = "v8_int16"
+
+	//INT32STRING is the string that will define we want to work with the xmm values as int 32
+	INT32STRING = "v4_int32"
+
+	//INT64STRING is the string that will define we want to work with the xmm values as int 64
+	INT64STRING = "v2_int64"
+
+	//FLOAT32STRING is the string that will define we want to work with the xmm values as float 32
+	FLOAT32STRING = "v4_float"
+
+	//FLOAT64STRING is the string that will define we want to work with the xmm values as float 64
+	FLOAT64STRING = "v2_double"
+)
+
+//XMM register is represented as a 16 bytes slice with the corresponding values
+type XMM []byte
 
 //NewXMM creates a new XMM
 func NewXMM(p *[]byte) XMM {
-	var resXMM = XMM{Values: make([]byte, XmmBytes)}
+	var resXMM = XMM{}
 	slice := *p
 
-	for i := 0; i < XmmBytes; i++ {
-		resXMM.Values[i] = slice[i]
+	for i := 0; i < XMMBYTES; i++ {
+		resXMM = append(resXMM, slice[i])
 	}
 
 	return resXMM
@@ -40,7 +61,7 @@ func NewXMM(p *[]byte) XMM {
 
 //Print prints the values in the xmm register as bytes.
 func (xmm XMM) Print() {
-	fmt.Println(xmm.Values)
+	fmt.Println(xmm)
 }
 
 //PrintAs prints the values in the xmm register as bytes, words,
@@ -49,40 +70,40 @@ func (xmm XMM) Print() {
 func (xmm XMM) PrintAs(format string) {
 	switch format {
 	case "int8":
-		fmt.Printf("%v", xmm.Values)
+		fmt.Printf("%v", xmm)
 
 	case "int16":
-		data := make([]int16, len(xmm.Values)/SizeOfInt16)
+		data := make([]int16, len(xmm)/SIZEOFINT16)
 		for i := range data {
-			data[i] = int16(binary.LittleEndian.Uint16(xmm.Values[i*SizeOfInt16 : (i+1)*SizeOfInt16]))
+			data[i] = int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
 		}
 		fmt.Printf("%v", data)
 
 	case "int32":
-		data := make([]int32, len(xmm.Values)/SizeOfInt32)
+		data := make([]int32, len(xmm)/SIZEOFINT32)
 		for i := range data {
-			data[i] = int32(binary.LittleEndian.Uint32(xmm.Values[i*SizeOfInt32 : (i+1)*SizeOfInt32]))
+			data[i] = int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 		}
 		fmt.Printf("%v", data)
 
 	case "int64":
-		data := make([]int64, len(xmm.Values)/SizeOfInt64)
+		data := make([]int64, len(xmm)/SIZEOFINT64)
 		for i := range data {
-			data[i] = int64(binary.LittleEndian.Uint64(xmm.Values[i*SizeOfInt64 : (i+1)*SizeOfInt64]))
+			data[i] = int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 		}
 		fmt.Printf("%v", data)
 
 	case "float32":
-		data := make([]float32, len(xmm.Values)/SizeOfInt32)
+		data := make([]float32, len(xmm)/SIZEOFINT32)
 		for i := range data {
-			data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm.Values[i*SizeOfInt32 : (i+1)*SizeOfInt32]))
+			data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 		}
 		fmt.Printf("%v", data)
 
 	case "float64":
-		data := make([]float64, len(xmm.Values)/SizeOfInt64)
+		data := make([]float64, len(xmm)/SIZEOFINT64)
 		for i := range data {
-			data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm.Values[i*SizeOfInt64 : (i+1)*SizeOfInt64]))
+			data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 		}
 		fmt.Printf("%v", data)
 
@@ -91,51 +112,56 @@ func (xmm XMM) PrintAs(format string) {
 }
 
 //AsInt8 returns a slice with the values in the xmm register as bytes.
-func (xmm XMM) AsInt8() []byte {
-	return xmm.Values
+//Must convert values to int16 because javascript won't recognize bytes as numbers.
+func (xmm XMM) AsInt8() []int16 {
+	data := make([]int16, len(xmm)/SIZEOFINT16)
+	for i := range data {
+		data[i] = int16(xmm[i])
+	}
+	return data
 }
 
 //AsInt16 returns a slice with the values in the xmm register as words.
 func (xmm XMM) AsInt16() []int16 {
-	data := make([]int16, len(xmm.Values)/SizeOfInt16)
+	data := make([]int16, len(xmm)/SIZEOFINT16)
 	for i := range data {
-		data[i] = int16(binary.LittleEndian.Uint16(xmm.Values[i*SizeOfInt16 : (i+1)*SizeOfInt16]))
+		data[i] = int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
 	}
 	return data
 }
 
 //AsInt32 returns a slice with the values in the xmm register as double words.
 func (xmm XMM) AsInt32() []int32 {
-	data := make([]int32, len(xmm.Values)/SizeOfInt32)
+	data := make([]int32, len(xmm)/SIZEOFINT32)
 	for i := range data {
-		data[i] = int32(binary.LittleEndian.Uint32(xmm.Values[i*SizeOfInt32 : (i+1)*SizeOfInt32]))
+		data[i] = int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 	}
 	return data
 }
 
 //AsInt64 returns a slice with the values in the xmm register as quad words.
 func (xmm XMM) AsInt64() []int64 {
-	data := make([]int64, len(xmm.Values)/SizeOfInt64)
+	data := make([]int64, len(xmm)/SIZEOFINT64)
 	for i := range data {
-		data[i] = int64(binary.LittleEndian.Uint64(xmm.Values[i*SizeOfInt64 : (i+1)*SizeOfInt64]))
+		data[i] = int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 	}
 	return data
 }
 
 //AsFloat32 returns a slice with the values in the xmm register as simple precision numbers.
 func (xmm XMM) AsFloat32() []float32 {
-	data := make([]float32, len(xmm.Values)/SizeOfInt32)
+	data := make([]float32, len(xmm)/SIZEOFINT32)
 	for i := range data {
-		data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm.Values[i*SizeOfInt32 : (i+1)*SizeOfInt32]))
+		data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 	}
 	return data
 }
 
 //AsFloat64 returns a slice with the values in the xmm register as double precision numbers.
 func (xmm XMM) AsFloat64() []float64 {
-	data := make([]float64, len(xmm.Values)/SizeOfInt64)
+	data := make([]float64, len(xmm)/SIZEOFINT64)
 	for i := range data {
-		data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm.Values[i*SizeOfInt64 : (i+1)*SizeOfInt64]))
+		data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 	}
 	return data
 }
@@ -147,10 +173,10 @@ type XMMHandler struct {
 
 //NewXMMHandler creates a new XMMHandler
 func NewXMMHandler(p *[]byte) XMMHandler {
-	handlerRes := XMMHandler{Xmm: make([]XMM, XmmRegisters)}
+	handlerRes := XMMHandler{Xmm: make([]XMM, XMMREGISTERS)}
 	slice := *p
 
-	for i, _ := range handlerRes.Xmm {
+	for i := range handlerRes.Xmm {
 		xmmSlice := slice[16*i : 16*(i+1)]
 		handlerRes.Xmm[i] = NewXMM(&xmmSlice)
 	}
@@ -166,6 +192,35 @@ func (handler XMMHandler) PrintAs(format string) {
 		xmm.PrintAs(format)
 	}
 	fmt.Printf("\n")
+}
+
+//GetXMMData will call the corresponding As<format> function given the xmmID and the data format desired.
+func (handler XMMHandler) GetXMMData(xmmString string, dataFormat string) interface{} {
+	runes := []rune(xmmString)
+	xmmString = string(runes[3:])
+	xmmNumber, err := strconv.Atoi(xmmString)
+
+	if err != nil {
+		panic(err)
+	}
+
+	switch dataFormat {
+	case INT8STRING:
+		fmt.Printf("ID: %v\t Values: %q", xmmNumber, handler.Xmm[xmmNumber].AsInt8())
+		return handler.Xmm[xmmNumber].AsInt8()
+	case INT16STRING:
+		return handler.Xmm[xmmNumber].AsInt16()
+	case INT32STRING:
+		return handler.Xmm[xmmNumber].AsInt32()
+	case INT64STRING:
+		return handler.Xmm[xmmNumber].AsInt64()
+	case FLOAT32STRING:
+		return handler.Xmm[xmmNumber].AsFloat32()
+	case FLOAT64STRING:
+		return handler.Xmm[xmmNumber].AsFloat64()
+	default:
+		panic("The XMM format is invalid")
+	}
 }
 
 // func main() {
