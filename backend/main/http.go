@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"syscall"
@@ -26,8 +27,19 @@ type XMMData struct {
 	XmmValues interface{}
 }
 
-//CellRegisters ...
+//CellRegisters contains the different XMMData in a cell.
 type CellRegisters []XMMData
+
+//Contains returns true if CellRegisters contains XMMData input
+func (cellRegs *CellRegisters) Contains(newXmmData *XMMData) bool {
+
+	for _, xmmData := range *cellRegs {
+		if xmmData.XmmID == newXmmData.XmmID {
+			return true
+		}
+	}
+	return false
+}
 
 //ResponseObj ...
 type ResponseObj struct {
@@ -56,11 +68,77 @@ func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhan
 	cellRegisters := CellRegisters{}
 
 	for _, request := range cellsData.Requests[cellIndex] {
-		xmmData := XMMData{XmmID: request.XmmID, XmmValues: xmmHandler.GetXMMData(request.XmmID, request.DataFormat)}
+		cellsData.DefaultFormat[request.XmmNumber] = request.DataFormat
+
+		xmmData := XMMData{XmmID: request.XmmID, XmmValues: xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat)}
 		cellRegisters = append(cellRegisters, xmmData)
 	}
 
 	return cellRegisters
+}
+
+func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, cellsData *cellshandler.CellsData, cellIndex int) CellRegisters {
+	cellRegisters := CellRegisters{}
+
+	if cellIndex > 0 {
+		for index := range oldXmmHandler.Xmm {
+			oldXmm := oldXmmHandler.Xmm[index]
+			newXmm := newXmmHandler.Xmm[index]
+			if !oldXmm.Equals(newXmm) {
+				xmmString := "XMM" + strconv.Itoa(index)
+				xmmData := XMMData{XmmID: xmmString, XmmValues: newXmmHandler.GetXMMData(index, cellsData.DefaultFormat[index])}
+				cellRegisters = append(cellRegisters, xmmData)
+			}
+		}
+	}
+
+	return cellRegisters
+}
+
+func getXMMRegs(pid int) xmmhandler.XMMHandler {
+	var unixRegs unix.PtraceRegs
+	ptrace.GetFPRegs(pid, &unixRegs)
+
+	fmt.Printf("\nAddress: %p\n", &unixRegs)
+
+	fpPointer := (*ptrace.FPRegs)(unsafe.Pointer(&unixRegs))
+	xmmSlice := fpPointer.XMMSpace[:]
+	return xmmhandler.NewXMMHandler(&xmmSlice)
+}
+
+func joinWithPriority(cellRegs1 *CellRegisters, cellRegs2 *CellRegisters) CellRegisters {
+
+	resCellRegisters := *cellRegs1
+
+	for _, xmmData := range *cellRegs2 {
+		if !resCellRegisters.Contains(&xmmData) {
+			resCellRegisters = append(resCellRegisters, xmmData)
+		}
+	}
+
+	return resCellRegisters
+}
+
+func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int) {
+
+	r := regexp.MustCompile(";print(( |\\t)+)?(xmm)\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
+	matches := r.FindAllStringSubmatch(cellsData.Data[cellIndex].Code, -1)
+
+	if len(matches) > 0 {
+		var newFormat string
+		match := matches[len(matches)-1]
+
+		for i, name := range r.SubexpNames() {
+			if name == "dataFormat" {
+				newFormat = match[i]
+			}
+		}
+
+		for i := range cellsData.DefaultFormat {
+			cellsData.DefaultFormat[i] = newFormat
+		}
+	}
+
 }
 
 func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
@@ -74,26 +152,24 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 		cellIndex++
 	}
 
+	oldXmmHandler := getXMMRegs(pid)
+
 	ptrace.Cont(pid, 0)
 
 	var ws syscall.WaitStatus
 
 	syscall.Wait4(pid, &ws, syscall.WALL, nil)
-	var unixRegs unix.PtraceRegs
+
 	for !ws.Exited() {
-		ptrace.GetFPRegs(pid, &unixRegs)
+		newXmmHandler := getXMMRegs(pid)
+		updatePrintFormat(cellsData, cellIndex)
+		requestedCellRegisters := getRequestedRegisters(cellsData, &newXmmHandler, cellIndex)
+		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, cellsData, cellIndex)
+		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
-		fmt.Printf("\nAddress: %p\n", &unixRegs)
+		oldXmmHandler = newXmmHandler
 
-		fpPointer := (*ptrace.FPRegs)(unsafe.Pointer(&unixRegs))
-		xmmSlice := fpPointer.XMMSpace[:]
-		xmmHandler := xmmhandler.NewXMMHandler(&xmmSlice)
-
-		cellRegisters := getRequestedRegisters(cellsData, &xmmHandler, cellIndex)
-
-		// fmt.Println("\nNueva celda")
-		// xmmHandler.PrintAs("float64")
-		res.CellRegs = append(res.CellRegs, cellRegisters)
+		res.CellRegs = append(res.CellRegs, selectedCellRegisters)
 		cellIndex++
 		ptrace.Cont(pid, 0)
 		syscall.Wait4(pid, &ws, syscall.WALL, nil)

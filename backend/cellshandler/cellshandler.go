@@ -1,9 +1,11 @@
 package cellshandler
 
 import (
-	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/xmmhandler"
 )
 
 //CellData ...
@@ -15,13 +17,15 @@ type CellData struct {
 
 //CellsData ...
 type CellsData struct {
-	Data        []CellData `json:"CellsData"`
-	HasDataCell bool
-	Requests    []XmmRequests
+	Data          []CellData `json:"CellsData"`
+	HasDataCell   bool
+	Requests      []XmmRequests
+	DefaultFormat []string
 }
 
 //XmmRequest ...
 type XmmRequest struct {
+	XmmNumber  int
 	XmmID      string
 	DataFormat string
 }
@@ -31,10 +35,18 @@ type XmmRequests []XmmRequest
 
 //NewCellsData creates a new CellsData
 func NewCellsData() CellsData {
+
+	defaultFormat := make([]string, 16)
+
+	for i := range defaultFormat {
+		defaultFormat[i] = xmmhandler.INT8STRING
+	}
+
 	return CellsData{
-		Data:        make([]CellData, 0),
-		HasDataCell: false,
-		Requests:    make([]XmmRequests, 0),
+		Data:          make([]CellData, 0),
+		HasDataCell:   false,
+		Requests:      make([]XmmRequests, 0),
+		DefaultFormat: defaultFormat,
 	}
 }
 
@@ -82,14 +94,11 @@ func (obj *CellsData) handleAllXmmRequests() {
 		obj.handleCellXmmRequests(r, cellIndex)
 	}
 
-	fmt.Println(obj)
 }
 
 func (obj *CellsData) handleCellXmmRequests(r *regexp.Regexp, cellIndex int) {
 	matches := r.FindAllStringSubmatch(obj.Data[cellIndex].Code, -1)
-	fmt.Println(matches)
 	for _, match := range matches {
-		fmt.Printf("%q", match)
 		obj.handleXmmRequest(r, match, cellIndex)
 	}
 }
@@ -100,7 +109,12 @@ func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellInd
 
 	for i, name := range r.SubexpNames() {
 		if name == "xmmID" {
-			xmmRequest.XmmID = match[i]
+			xmmRequest.XmmID = strings.ToUpper(match[i])
+
+			runes := []rune(xmmRequest.XmmID)
+			xmmString := string(runes[3:])
+			xmmRequest.XmmNumber, _ = strconv.Atoi(xmmString)
+
 		}
 
 		if name == "dataFormat" {

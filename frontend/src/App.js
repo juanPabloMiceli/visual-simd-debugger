@@ -28,6 +28,7 @@ class App extends Component{
 		.then(response => {
       console.log(response)
       let copy = this.state.CellsData
+      
       copy[this.state.totalCells-1].output = response.data.ConsoleOut.replaceAll(String.fromCharCode(0), '')
       this.setState({CellsData: copy})
 		})

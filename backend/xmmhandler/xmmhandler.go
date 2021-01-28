@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"strconv"
 )
 
 const (
@@ -57,6 +56,19 @@ func NewXMM(p *[]byte) XMM {
 	}
 
 	return resXMM
+}
+
+//Equals compares two XMM
+func (xmm XMM) Equals(newXmm XMM) bool {
+
+	for index := range xmm {
+		if xmm[index] != newXmm[index] {
+			return false
+		}
+	}
+
+	return true
+
 }
 
 //Print prints the values in the xmm register as bytes.
@@ -114,7 +126,7 @@ func (xmm XMM) PrintAs(format string) {
 //AsInt8 returns a slice with the values in the xmm register as bytes.
 //Must convert values to int16 because javascript won't recognize bytes as numbers.
 func (xmm XMM) AsInt8() []int16 {
-	data := make([]int16, len(xmm)/SIZEOFINT16)
+	data := make([]int16, len(xmm))
 	for i := range data {
 		data[i] = int16(xmm[i])
 	}
@@ -194,19 +206,11 @@ func (handler XMMHandler) PrintAs(format string) {
 	fmt.Printf("\n")
 }
 
-//GetXMMData will call the corresponding As<format> function given the xmmID and the data format desired.
-func (handler XMMHandler) GetXMMData(xmmString string, dataFormat string) interface{} {
-	runes := []rune(xmmString)
-	xmmString = string(runes[3:])
-	xmmNumber, err := strconv.Atoi(xmmString)
-
-	if err != nil {
-		panic(err)
-	}
+//GetXMMData will call the corresponding As<format> function given the xmmNumber and the data format desired.
+func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string) interface{} {
 
 	switch dataFormat {
 	case INT8STRING:
-		fmt.Printf("ID: %v\t Values: %q", xmmNumber, handler.Xmm[xmmNumber].AsInt8())
 		return handler.Xmm[xmmNumber].AsInt8()
 	case INT16STRING:
 		return handler.Xmm[xmmNumber].AsInt16()
@@ -232,17 +236,18 @@ func (handler XMMHandler) GetXMMData(xmmString string, dataFormat string) interf
 
 // 	slice := valores[:]
 // 	xmm1 := NewXMM(&slice)
-// 	xmm1.PrintAs("int8")
 // 	fmt.Println(xmm1.AsInt8())
-// 	xmm1.PrintAs("int16")
-// 	fmt.Println(xmm1.AsInt16())
-// 	xmm1.PrintAs("int32")
-// 	fmt.Println(xmm1.AsInt32())
-// 	xmm1.PrintAs("int64")
-// 	fmt.Println(xmm1.AsInt64())
-// 	xmm1.PrintAs("float32")
-// 	fmt.Println(xmm1.AsFloat32())
-// 	xmm1.PrintAs("float64")
-// 	fmt.Println(xmm1.AsFloat64())
+// 	// xmm1.PrintAs(INT8STRING)
+// 	// fmt.Println(xmm1.AsInt8())
+// 	// xmm1.PrintAs(INT16STRING)
+// 	// fmt.Println(xmm1.AsInt16())
+// 	// xmm1.PrintAs(INT32STRING)
+// 	// fmt.Println(xmm1.AsInt32())
+// 	// xmm1.PrintAs(INT64STRING)
+// 	// fmt.Println(xmm1.AsInt64())
+// 	// xmm1.PrintAs(FLOAT32STRING)
+// 	// fmt.Println(xmm1.AsFloat32())
+// 	// xmm1.PrintAs(FLOAT64STRING)
+// 	// fmt.Println(xmm1.AsFloat64())
 
 // }
