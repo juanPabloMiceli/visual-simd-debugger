@@ -1,28 +1,52 @@
-import React, { Component } from 'react';
+import React, {useEffect} from 'react';
 import TextInput from './TextInput';
-import TextOutput from './TextOutput';
-import axios from 'axios'
-let local_host = "http://localhost:8080"
+import {useContextXMMRegisters, useContextData} from './Context'
+import XMMS from './XMMS'
 
-axios.defaults.headers.common = {
-	"Content-Type": "application/json"
-  }
+export default function Cell(props){
 
-class Cell extends Component {
+    const VisualizerData = useContextData()
 
-	updateCodeFromChild = (_code) => {
-		this.props.parentUpdateCode(this.props.id, _code)
-	}
+    // let outputData
 
-
-    render() {
-        return (
+    // useEffect(() => {
+    //     console.log("XMMS: " + props.id)
+    //     console.log(VisualizerData.CellsData[props.id].output)
+    //     outputData = <XMMS data={VisualizerData.CellsData[props.id].output}/>
+    // }, [VisualizerData.CellsData[props.id].output]);
+    
+    if(VisualizerData.CellsData[props.id].output.length > 0){
+        return(
             <div id={'Cell'}>
-                <TextInput parentUpdateCode={this.updateCodeFromChild}/>
-                <TextOutput text={this.props.output}/>
+                <TextInput id={props.id}/>
+                <XMMS data={VisualizerData.CellsData[props.id].output}/>
             </div>
-        );
+        ) 
     }
+    return(
+        <div id={'Cell'}>
+            <TextInput id={props.id}/>
+        </div>
+    ) 
 }
 
-export default Cell;
+
+// class Cell extends Component {
+
+// 	// updateCodeFromChild = (_code) => {
+// 	// 	this.props.parentUpdateCode(this.props.id, _code)
+// 	// }
+
+
+//     render() {
+//         return (
+//             <div id={'Cell'}>
+//                 hols
+//                 <TextInput parentUpdateCode={this.updateCodeFromChild}/>
+//                 {/* <TextOutput text={this.props.output}/> */}
+//             </div>
+//         );
+//     }
+// }
+
+// export default Cell;

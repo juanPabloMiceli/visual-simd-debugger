@@ -8,11 +8,17 @@ import (
 	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/xmmhandler"
 )
 
+//XMMData ...
+type XMMData struct {
+	XmmID     string
+	XmmValues interface{}
+}
+
 //CellData ...
 type CellData struct {
-	ID     int    `json:"id"`
-	Code   string `json:"code"`
-	Output string `json:"output"`
+	ID     int       `json:"id"`
+	Code   string    `json:"code"`
+	Output []XMMData `json:"output"`
 }
 
 //CellsData ...
@@ -148,7 +154,7 @@ func (obj *CellsData) addDataSection() {
 
 func (obj *CellsData) addTextSection() {
 	var startText string
-	startText += "global _start\n"
+	startText += "\nglobal _start\n"
 	startText += "section .text\n"
 	startText += "_start:\n"
 
