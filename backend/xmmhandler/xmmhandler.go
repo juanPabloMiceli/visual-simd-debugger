@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"reflect"
 )
 
 const (
@@ -130,6 +131,9 @@ func (xmm XMM) AsInt8() []int16 {
 	for i := range data {
 		data[i] = int16(xmm[i])
 	}
+	fmt.Println(data)
+	reverseSlice(data)
+	fmt.Println(data)
 	return data
 }
 
@@ -139,6 +143,9 @@ func (xmm XMM) AsInt16() []int16 {
 	for i := range data {
 		data[i] = int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
 	}
+	fmt.Println(data)
+	reverseSlice(data)
+	fmt.Println(data)
 	return data
 }
 
@@ -148,6 +155,9 @@ func (xmm XMM) AsInt32() []int32 {
 	for i := range data {
 		data[i] = int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 	}
+	fmt.Println(data)
+	reverseSlice(data)
+	fmt.Println(data)
 	return data
 }
 
@@ -157,6 +167,9 @@ func (xmm XMM) AsInt64() []int64 {
 	for i := range data {
 		data[i] = int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 	}
+	fmt.Println(data)
+	reverseSlice(data)
+	fmt.Println(data)
 	return data
 }
 
@@ -166,6 +179,9 @@ func (xmm XMM) AsFloat32() []float32 {
 	for i := range data {
 		data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 	}
+	fmt.Println(data)
+	reverseSlice(data)
+	fmt.Println(data)
 	return data
 }
 
@@ -175,6 +191,9 @@ func (xmm XMM) AsFloat64() []float64 {
 	for i := range data {
 		data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 	}
+	fmt.Println(data)
+	reverseSlice(data)
+	fmt.Println(data)
 	return data
 }
 
@@ -224,6 +243,18 @@ func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string) interfac
 		return handler.Xmm[xmmNumber].AsFloat64()
 	default:
 		panic("The XMM format is invalid")
+	}
+}
+
+func reverseSlice(data interface{}) {
+	value := reflect.ValueOf(data)
+	valueLen := value.Len()
+
+	for i := 0; i <= int((valueLen-1)/2); i++ {
+		reverseIndex := valueLen - 1 - i
+		tmp := value.Index(reverseIndex).Interface()
+		value.Index(reverseIndex).Set(value.Index(i))
+		value.Index(i).Set(reflect.ValueOf(tmp))
 	}
 }
 

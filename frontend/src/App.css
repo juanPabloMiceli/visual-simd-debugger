@@ -58,7 +58,43 @@
   margin-top: 0.4cm;
 }
 
-#XMMVal{
+#XMMVal-2{
+  color: white;
+  background: rgb(24, 30, 110);
+  font-size: normal;
+  text-align: center;
+  padding: 15px 7px 0px 6px;
+  display: inline-block;
+  min-width: 32vw;
+  min-height: 30px;
+  border: 1px solid white;
+}
+
+#XMMVal-4{
+  color: white;
+  background: rgb(24, 30, 110);
+  font-size: normal;
+  text-align: center;
+  padding: 15px 3px 0px 3px;
+  display: inline-block;
+  min-width: 16vw;
+  min-height: 30px;
+  border: 1px solid white;
+}
+
+#XMMVal-8{
+  color: white;
+  background: rgb(24, 30, 110);
+  font-size: normal;
+  text-align: center;
+  padding: 15px 1px 0px 1px;
+  display: inline-block;
+  min-width: 8vw;
+  min-height: 30px;
+  border: 1px solid white;
+}
+
+#XMMVal-16{
   color: white;
   background: rgb(24, 30, 110);
   font-size: normal;
