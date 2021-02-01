@@ -23,8 +23,9 @@ import (
 
 //XMMData ...
 type XMMData struct {
-	XmmID     string
-	XmmValues interface{}
+	XmmID       string
+	XmmValues   interface{}
+	PrintFormat string
 }
 
 //CellRegisters contains the different XMMData in a cell.
@@ -68,9 +69,12 @@ func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhan
 	cellRegisters := CellRegisters{}
 
 	for _, request := range cellsData.Requests[cellIndex] {
-		cellsData.DefaultFormat[request.XmmNumber] = request.DataFormat
-
-		xmmData := XMMData{XmmID: request.XmmID, XmmValues: xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat)}
+		fmt.Println("Request: ", request.PrintFormat)
+		if request.PrintFormat == "" {
+			request.PrintFormat = cellsData.DefaultPrintingFormat[request.XmmNumber]
+		}
+		fmt.Println("Final request: ", request.PrintFormat)
+		xmmData := XMMData{XmmID: request.XmmID, XmmValues: xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat, request.PrintFormat), PrintFormat: request.PrintFormat}
 		cellRegisters = append(cellRegisters, xmmData)
 	}
 
@@ -86,7 +90,7 @@ func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xm
 			newXmm := newXmmHandler.Xmm[index]
 			if !oldXmm.Equals(newXmm) {
 				xmmString := "XMM" + strconv.Itoa(index)
-				xmmData := XMMData{XmmID: xmmString, XmmValues: newXmmHandler.GetXMMData(index, cellsData.DefaultFormat[index])}
+				xmmData := XMMData{XmmID: xmmString, XmmValues: newXmmHandler.GetXMMData(index, cellsData.DefaultDataFormat[index], cellsData.DefaultPrintingFormat[index]), PrintFormat: cellsData.DefaultPrintingFormat[index]}
 				cellRegisters = append(cellRegisters, xmmData)
 			}
 		}
@@ -119,24 +123,46 @@ func joinWithPriority(cellRegs1 *CellRegisters, cellRegs2 *CellRegisters) CellRe
 	return resCellRegisters
 }
 
+func setDefaultDataFormat(cellsData *cellshandler.CellsData, newDataFormat string) {
+	for i := range cellsData.DefaultDataFormat {
+		cellsData.DefaultDataFormat[i] = newDataFormat
+	}
+}
+
+func setDefaultPrintFormat(cellsData *cellshandler.CellsData, newPrintFormat string) {
+	for i := range cellsData.DefaultPrintingFormat {
+		cellsData.DefaultPrintingFormat[i] = newPrintFormat
+	}
+}
+
 func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int) {
 
-	r := regexp.MustCompile(";print(( |\\t)+)?(xmm)\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
+	r := regexp.MustCompile(";(print|p)(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5])?)\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
 	matches := r.FindAllStringSubmatch(cellsData.Data[cellIndex].Code, -1)
 
 	if len(matches) > 0 {
-		var newFormat string
-		match := matches[len(matches)-1]
 
-		for i, name := range r.SubexpNames() {
-			if name == "dataFormat" {
-				newFormat = match[i]
+		for _, match := range matches {
+			values := cellshandler.GetGroupValues(r, match)
+			if values["xmmID"] != "xmm" {
+				//This only changes one register
+				fmt.Println("Quiero imprimir: ", values["xmmID"])
+				xmmNumber := cellshandler.XmmID2Number(values["xmmID"])
+				if !(values["printFormat"] == "") {
+					fmt.Println("El valor estaba vacio, nuevo valor: ", values["printFormat"])
+					cellsData.DefaultPrintingFormat[xmmNumber] = values["printFormat"]
+				}
+				cellsData.DefaultDataFormat[xmmNumber] = values["dataFormat"]
+
+			} else {
+				//I want to change all defaultValues
+
+				setDefaultDataFormat(cellsData, values["dataFormat"])
+				setDefaultPrintFormat(cellsData, values["printFormat"])
+
 			}
 		}
 
-		for i := range cellsData.DefaultFormat {
-			cellsData.DefaultFormat[i] = newFormat
-		}
 	}
 
 }
@@ -195,7 +221,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	decodeErr := dec.Decode(&cellsData)
 
 	if decodeErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't read data from the server properly."})
+		response(&w, ResponseObj{ConsoleOut: "Could't read data from the client properly."})
 		return
 	}
 

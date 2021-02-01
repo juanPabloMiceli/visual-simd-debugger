@@ -10,7 +10,7 @@ function SimdVisualizer(){
     const deleteCell = useContextDeleteCell()
     const VisualizerData = useContextData()
 
-    console.log(VisualizerData)
+    // console.log(VisualizerData)
 
     let CellComponents = VisualizerData.CellsData.map(cell => {
         return (<div>

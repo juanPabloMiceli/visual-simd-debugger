@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strconv"
 )
 
 const (
@@ -42,6 +43,12 @@ const (
 
 	//FLOAT64STRING is the string that will define we want to work with the xmm values as float 64
 	FLOAT64STRING = "v2_double"
+
+	//UNSIGNEDFORMAT ...
+	UNSIGNEDFORMAT = "/u"
+
+	//SIGNEDFORMAT ...
+	SIGNEDFORMAT = "/d"
 )
 
 //XMM register is represented as a 16 bytes slice with the corresponding values
@@ -124,76 +131,113 @@ func (xmm XMM) PrintAs(format string) {
 
 }
 
-//AsInt8 returns a slice with the values in the xmm register as bytes.
+//AsUint8 returns a slice with the values in the xmm register as unsigned bytes.
 //Must convert values to int16 because javascript won't recognize bytes as numbers.
-func (xmm XMM) AsInt8() []int16 {
-	data := make([]int16, len(xmm))
+func (xmm XMM) AsUint8() []string {
+	data := make([]string, len(xmm))
 	for i := range data {
-		data[i] = int16(xmm[i])
+		value := xmm[i]
+		data[i] = strconv.Itoa(int(value))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
-//AsInt16 returns a slice with the values in the xmm register as words.
-func (xmm XMM) AsInt16() []int16 {
-	data := make([]int16, len(xmm)/SIZEOFINT16)
+//AsInt8 returns a slice with the values in the xmm register as signed bytes.
+//Must convert values to int16 because javascript won't recognize bytes as numbers.
+func (xmm XMM) AsInt8() []string {
+	data := make([]string, len(xmm))
 	for i := range data {
-		data[i] = int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
+		value := int8(xmm[i])
+		data[i] = strconv.Itoa(int(value))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
-//AsInt32 returns a slice with the values in the xmm register as double words.
-func (xmm XMM) AsInt32() []int32 {
-	data := make([]int32, len(xmm)/SIZEOFINT32)
+//AsUint16 returns a slice with the values in the xmm register as unsigned words.
+func (xmm XMM) AsUint16() []string {
+	data := make([]string, len(xmm)/SIZEOFINT16)
 	for i := range data {
-		data[i] = int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
+		value := binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16])
+		data[i] = strconv.Itoa(int(value))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
-//AsInt64 returns a slice with the values in the xmm register as quad words.
-func (xmm XMM) AsInt64() []int64 {
-	data := make([]int64, len(xmm)/SIZEOFINT64)
+//AsInt16 returns a slice with the values in the xmm register as signed words.
+func (xmm XMM) AsInt16() []string {
+	data := make([]string, len(xmm)/SIZEOFINT16)
 	for i := range data {
-		data[i] = int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
+		value := int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
+		data[i] = strconv.Itoa(int(value))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
+	return data
+}
+
+//AsUint32 returns a slice with the values in the xmm register as unsigned double words.
+func (xmm XMM) AsUint32() []string {
+	data := make([]string, len(xmm)/SIZEOFINT32)
+	for i := range data {
+		value := binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32])
+		data[i] = strconv.Itoa(int(value))
+	}
+	reverseSlice(data)
+	return data
+}
+
+//AsInt32 returns a slice with the values in the xmm register as signed double words.
+func (xmm XMM) AsInt32() []string {
+	data := make([]string, len(xmm)/SIZEOFINT32)
+	for i := range data {
+		value := int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
+		data[i] = strconv.Itoa(int(value))
+	}
+	reverseSlice(data)
+	return data
+}
+
+//AsUint64 returns a slice with the values in the xmm register as unsigned quad words.
+func (xmm XMM) AsUint64() []string {
+	data := make([]string, len(xmm)/SIZEOFINT64)
+	for i := range data {
+		value := binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64])
+		data[i] = strconv.FormatUint(value, 10)
+	}
+	reverseSlice(data)
+	return data
+}
+
+//AsInt64 returns a slice with the values in the xmm register as signed quad words.
+func (xmm XMM) AsInt64() []string {
+	data := make([]string, len(xmm)/SIZEOFINT64)
+	for i := range data {
+		value := int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
+		data[i] = strconv.FormatInt(value, 10)
+	}
+	reverseSlice(data)
 	return data
 }
 
 //AsFloat32 returns a slice with the values in the xmm register as simple precision numbers.
-func (xmm XMM) AsFloat32() []float32 {
-	data := make([]float32, len(xmm)/SIZEOFINT32)
+func (xmm XMM) AsFloat32() []string {
+	data := make([]string, len(xmm)/SIZEOFINT32)
 	for i := range data {
-		data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
+		data[i] = fmt.Sprintf("%f", math.Float32frombits(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32:(i+1)*SIZEOFINT32])))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
 //AsFloat64 returns a slice with the values in the xmm register as double precision numbers.
-func (xmm XMM) AsFloat64() []float64 {
-	data := make([]float64, len(xmm)/SIZEOFINT64)
+func (xmm XMM) AsFloat64() []string {
+	data := make([]string, len(xmm)/SIZEOFINT64)
 	for i := range data {
-		data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
+		data[i] = fmt.Sprintf("%f", math.Float64frombits(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64:(i+1)*SIZEOFINT64])))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -226,21 +270,39 @@ func (handler XMMHandler) PrintAs(format string) {
 }
 
 //GetXMMData will call the corresponding As<format> function given the xmmNumber and the data format desired.
-func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string) interface{} {
+func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string, printFormat string) interface{} {
 
 	switch dataFormat {
 	case INT8STRING:
+		if printFormat == UNSIGNEDFORMAT {
+			return handler.Xmm[xmmNumber].AsUint8()
+		}
 		return handler.Xmm[xmmNumber].AsInt8()
+
 	case INT16STRING:
+		if printFormat == UNSIGNEDFORMAT {
+			return handler.Xmm[xmmNumber].AsUint16()
+		}
 		return handler.Xmm[xmmNumber].AsInt16()
+
 	case INT32STRING:
+		if printFormat == UNSIGNEDFORMAT {
+			return handler.Xmm[xmmNumber].AsUint32()
+		}
 		return handler.Xmm[xmmNumber].AsInt32()
+
 	case INT64STRING:
+		if printFormat == UNSIGNEDFORMAT {
+			return handler.Xmm[xmmNumber].AsUint64()
+		}
 		return handler.Xmm[xmmNumber].AsInt64()
+
 	case FLOAT32STRING:
 		return handler.Xmm[xmmNumber].AsFloat32()
+
 	case FLOAT64STRING:
 		return handler.Xmm[xmmNumber].AsFloat64()
+
 	default:
 		panic("The XMM format is invalid")
 	}
@@ -257,28 +319,3 @@ func reverseSlice(data interface{}) {
 		value.Index(i).Set(reflect.ValueOf(tmp))
 	}
 }
-
-// func main() {
-// 	var valores [32]byte
-
-// 	for i := 0; i < 32; i++ {
-// 		valores[i] = 2 * byte(i)
-// 	}
-
-// 	slice := valores[:]
-// 	xmm1 := NewXMM(&slice)
-// 	fmt.Println(xmm1.AsInt8())
-// 	// xmm1.PrintAs(INT8STRING)
-// 	// fmt.Println(xmm1.AsInt8())
-// 	// xmm1.PrintAs(INT16STRING)
-// 	// fmt.Println(xmm1.AsInt16())
-// 	// xmm1.PrintAs(INT32STRING)
-// 	// fmt.Println(xmm1.AsInt32())
-// 	// xmm1.PrintAs(INT64STRING)
-// 	// fmt.Println(xmm1.AsInt64())
-// 	// xmm1.PrintAs(FLOAT32STRING)
-// 	// fmt.Println(xmm1.AsFloat32())
-// 	// xmm1.PrintAs(FLOAT64STRING)
-// 	// fmt.Println(xmm1.AsFloat64())
-
-// }

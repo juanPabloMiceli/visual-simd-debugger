@@ -1,6 +1,7 @@
 import axios from 'axios'
 import React, {useContext, useState} from 'react'
 
+
 const ContextData  = React.createContext()
 const ContextUpdateData = React.createContext()
 const ContextXMMRegisters = React.createContext()
@@ -8,6 +9,7 @@ const ContextSubmit = React.createContext()
 const ContextNewCell = React.createContext()
 const ContextDeleteCell = React.createContext()
 const local_host = "http://localhost:8080"
+
 
 export function useContextData(){
     return useContext(ContextData)
@@ -39,6 +41,8 @@ axios.defaults.headers.common = {
   }
 
 function Provider({children}){
+
+    var JSONbig = require('json-bigint')
     
     const [CellsData, setCellsData] = useState([initCell(0)]);
     const [TotalCells, setTotalCells] = useState(1);
@@ -54,11 +58,16 @@ function Provider({children}){
 
     function submitCode(e){
         e.preventDefault()
-        console.log(CellsData)
+        // console.log(CellsData)
         axios.post(local_host + "/codeSave", JSON.stringify({
             CellsData: CellsData
         }))
         .then(response =>{
+            // let r = JSONbig.parse(response)
+            console.log({response})
+            // console.log(Big(response.data.CellRegs[1][0].XmmValues[0]).toString())
+            // console.log(Big(response.data.CellRegs[1][0].XmmValues[1]).toString())
+
             setConsoleOutput(response.data.ConsoleOut) 
             updateXMMData(response.data.CellRegs) 
         }) 
