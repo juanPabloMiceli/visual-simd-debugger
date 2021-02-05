@@ -5,5 +5,5 @@ services:
 
 postman_tests:
   script:
-  - docker run -v $(pwd)/tests:/etc/newman -t postman/newman:latest run "simd-visualizer-tests.postman_collection.json" --reporters="cli"
+  - docker run -v $(pwd)/tests:/etc/newman -p 80:8080 -t postman/newman:latest run "simd-visualizer-tests.postman_collection.json" --reporters="cli"
   stage: test
