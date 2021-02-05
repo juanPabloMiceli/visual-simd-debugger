@@ -1,0 +1,9 @@
+image: docker:dind
+
+services:
+  - docker:dind
+
+postman_tests:
+  script:
+  - sudo docker run -v $(pwd)/tests:/etc/newman --network host -t postman/newman:latest run "simd-visualizer-tests.postman_collection.json" --reporters="cli"
+  stage: test
