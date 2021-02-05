@@ -212,6 +212,30 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	enableCors(&w)
 
+	//Testing JSON Request
+
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = ioutil.ReadAll(req.Body)
+	}
+
+	var dat map[string]interface{}
+	err := json.Unmarshal(bodyBytes, &dat)
+
+	if err != nil {
+		panic(err)
+	}
+
+	jsonData, _ := json.Marshal(dat)
+
+	fmt.Println(string(jsonData))
+
+	// fmt.Println(bodyBytes)
+
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	//End of Testing JSON Request
+
 	cellsData := cellshandler.NewCellsData()
 
 	dec := json.NewDecoder(req.Body)
