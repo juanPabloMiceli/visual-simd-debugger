@@ -130,10 +130,9 @@ func (xmm XMM) AsInt8() []int16 {
 	data := make([]int16, len(xmm))
 	for i := range data {
 		data[i] = int16(xmm[i])
+		data[i] = 2
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -143,9 +142,7 @@ func (xmm XMM) AsInt16() []int16 {
 	for i := range data {
 		data[i] = int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -155,9 +152,7 @@ func (xmm XMM) AsInt32() []int32 {
 	for i := range data {
 		data[i] = int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -167,9 +162,7 @@ func (xmm XMM) AsInt64() []int64 {
 	for i := range data {
 		data[i] = int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -179,9 +172,7 @@ func (xmm XMM) AsFloat32() []float32 {
 	for i := range data {
 		data[i] = math.Float32frombits(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -191,9 +182,7 @@ func (xmm XMM) AsFloat64() []float64 {
 	for i := range data {
 		data[i] = math.Float64frombits(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
 	}
-	fmt.Println(data)
 	reverseSlice(data)
-	fmt.Println(data)
 	return data
 }
 
@@ -227,7 +216,6 @@ func (handler XMMHandler) PrintAs(format string) {
 
 //GetXMMData will call the corresponding As<format> function given the xmmNumber and the data format desired.
 func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string) interface{} {
-
 	switch dataFormat {
 	case INT8STRING:
 		return handler.Xmm[xmmNumber].AsInt8()

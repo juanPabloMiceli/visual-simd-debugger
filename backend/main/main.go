@@ -51,6 +51,19 @@ func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 }
 
+func runningInDockerContainer() bool {
+	// docker creates a .dockerenv file at the root
+	// of the directory tree inside the container.
+	// if this file exists then the viewer is running
+	// from inside a container so return true
+
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+
+	return false
+}
+
 func response(w *http.ResponseWriter, obj interface{}) {
 
 	responseJSON, err := json.Marshal(obj)
@@ -160,7 +173,7 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 
 	syscall.Wait4(pid, &ws, syscall.WALL, nil)
 
-	for !ws.Exited() {
+	for cellIndex < len(cellsData.Data) {
 		newXmmHandler := getXMMRegs(pid)
 		updatePrintFormat(cellsData, cellIndex)
 		requestedCellRegisters := getRequestedRegisters(cellsData, &newXmmHandler, cellIndex)
@@ -193,14 +206,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		bodyBytes, _ = ioutil.ReadAll(req.Body)
 	}
 
-	var dat map[string]interface{}
-	err := json.Unmarshal(bodyBytes, &dat)
+	var jsonMap map[string]interface{}
+	err := json.Unmarshal(bodyBytes, &jsonMap)
 
 	if err != nil {
 		panic(err)
 	}
 
-	jsonData, _ := json.Marshal(dat)
+	jsonData, _ := json.MarshalIndent(jsonMap, "", "\t")
 
 	fmt.Println(string(jsonData))
 
@@ -224,7 +237,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	var fileText string
 	cellsData.HandleCellsData()
 	fileText = cellsData.CellsData2SourceCode()
-	fileErr := ioutil.WriteFile("output.asm", []byte(fileText), 0644)
+	var filePath string
+	if runningInDockerContainer() {
+		filePath = "main/output"
+	} else {
+		filePath = "output"
+	}
+
+	fileErr := ioutil.WriteFile(filePath+".asm", []byte(fileText), 0644)
 	if fileErr != nil {
 		response(&w, ResponseObj{ConsoleOut: "Could't create file properly."})
 		return
@@ -237,7 +257,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	nasmCmd := exec.Command(nasmPath, "-f", "elf64", "-g", "-F", "DWARF", "output.asm")
+	nasmCmd := exec.Command(nasmPath, "-f", "elf64", "-g", "-F", "DWARF", filePath+".asm", "-o", filePath+".o")
 	var stderr bytes.Buffer
 	nasmCmd.Stderr = &stderr
 	nasmErr := nasmCmd.Run()
@@ -254,7 +274,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	linkingCmd := exec.Command(linkerPath, "-o", "output", "output.o")
+	linkingCmd := exec.Command(linkerPath, "-o", filePath, filePath+".o")
 	linkingCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Run()
 

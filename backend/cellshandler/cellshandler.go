@@ -69,6 +69,7 @@ func (obj *CellsData) CellsData2SourceCode() string {
 
 //HandleCellsData edit cells code content such that the cells to source code convertion is direct
 func (obj *CellsData) HandleCellsData() {
+	//TODO: Check code exists and is not only data
 	obj.toLowerCase()
 	obj.fixCommentInstructions()
 	obj.handleAllXmmRequests()

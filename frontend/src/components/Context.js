@@ -38,6 +38,14 @@ axios.defaults.headers.common = {
 	"Content-Type": "application/json"
   }
 
+function cleanOutput(cellsData){
+    for(let i = 0; i < cellsData.length; i++){
+        cellsData[i].output = []
+    }
+
+    return cellsData
+}
+
 function Provider({children}){
     
     const [CellsData, setCellsData] = useState([initCell(0)]);
@@ -54,7 +62,7 @@ function Provider({children}){
 
     function submitCode(e){
         e.preventDefault()
-        console.log(CellsData)
+        setCellsData(cleanOutput(CellsData))
         axios.post(local_host + "/codeSave", JSON.stringify({
             CellsData: CellsData
         }))
