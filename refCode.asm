@@ -1,28 +1,50 @@
 section .data
-  sumar_alfas:  db 0, 0, 0, 15, 0, 0, 0, 10, 0, 0, 0, 5, 0, 0, 0, 255
-  msg: DB 'Hola mundo 0', 10, 0
-  largo EQU $ - msg
+  timeval:
+    tv_sec  dd 0
+    tv_usec dd 0
 
+  bmessage  db "Sleep", 10, 0
+  bmessagel equ $ - bmessage
+
+  emessage  db "Continue", 10, 0
+  emessagel equ $ - emessage
+  filename db "archivo.txt", 10, 0
+  p: db 12, 32,1 , 12, 321, 123,2
   global _start
 
 section .text
   _start:
-    mov rax, -1
-    movdqu xmm0, [sumar_alfas]
-  	xor esi, esi
+;print "sleep"
+  mov rax, 4
+  mov rbx, 1
+  mov rcx, bmessage
+  mov rdx, bmessagel
+  int 0x80
 
-  ciclo:
-    mov rax, 4
-    mov rbx, 1
-    mov rcx, msg
-    mov rdx, largo
-    int 0x80
+;sleep for 5 seconds and 0 nanoseconds
+  mov dword [tv_sec], 1
+  mov dword [tv_usec], 0
+  mov rax, 162
+  mov rbx, timeval
+  mov rcx, 0
+  int 0x80
 
-    inc byte [msg+largo-3]
-    inc esi
-    cmp esi, 10
-    jnz ciclo
+  loop:
+;print "continue"
+  mov rax, 4
+  mov rbx, 1
+  mov rcx, emessage
+  mov rdx, emessagel
+  int 0x80
+;jmp loop
 
-    mov rdi, 0
-    mov rax, 60
-    syscall 
+  mov rax,85;syscall number for create()
+  mov rdi,filename;argv[1], the file name
+  mov esi,00644q;rw,r,r
+  syscall;call the kernel 
+
+  movdqu xmm0, [p]
+
+  mov rax, 60
+mov rdi, 0
+syscall

@@ -10,8 +10,9 @@ import (
 
 //XMMData ...
 type XMMData struct {
-	XmmID     string
-	XmmValues interface{}
+	XmmID       string
+	XmmValues   interface{}
+	PrintFormat string
 }
 
 //CellData ...
@@ -23,17 +24,19 @@ type CellData struct {
 
 //CellsData ...
 type CellsData struct {
-	Data          []CellData `json:"CellsData"`
-	HasDataCell   bool
-	Requests      []XmmRequests
-	DefaultFormat []string
+	Data                  []CellData `json:"CellsData"`
+	HasDataCell           bool
+	Requests              []XmmRequests
+	DefaultDataFormat     []string
+	DefaultPrintingFormat []string
 }
 
 //XmmRequest ...
 type XmmRequest struct {
-	XmmNumber  int
-	XmmID      string
-	DataFormat string
+	XmmNumber   int
+	XmmID       string
+	DataFormat  string
+	PrintFormat string
 }
 
 //XmmRequests ...
@@ -42,17 +45,20 @@ type XmmRequests []XmmRequest
 //NewCellsData creates a new CellsData
 func NewCellsData() CellsData {
 
-	defaultFormat := make([]string, 16)
+	defaultDataFormat := make([]string, xmmhandler.XMMREGISTERS)
+	defaultPrintingFormat := make([]string, xmmhandler.XMMREGISTERS)
 
-	for i := range defaultFormat {
-		defaultFormat[i] = xmmhandler.INT8STRING
+	for i := range defaultDataFormat {
+		defaultDataFormat[i] = xmmhandler.INT8STRING
+		defaultPrintingFormat[i] = xmmhandler.SIGNEDFORMAT
 	}
 
 	return CellsData{
-		Data:          make([]CellData, 0),
-		HasDataCell:   false,
-		Requests:      make([]XmmRequests, 0),
-		DefaultFormat: defaultFormat,
+		Data:                  make([]CellData, 0),
+		HasDataCell:           false,
+		Requests:              make([]XmmRequests, 0),
+		DefaultDataFormat:     defaultDataFormat,
+		DefaultPrintingFormat: defaultPrintingFormat,
 	}
 }
 
@@ -94,8 +100,29 @@ func (obj *CellsData) fixCommentInstructions() {
 	}
 }
 
+//GetGroupValues returns a map with each value found in the regexp match
+func GetGroupValues(r *regexp.Regexp, match []string) map[string]string {
+
+	values := make(map[string]string)
+
+	for i, name := range r.SubexpNames() {
+		values[name] = match[i]
+	}
+
+	return values
+}
+
+//XmmID2Number receives a string with the format "xmm<number>" and returns the number as an int
+func XmmID2Number(xmmID string) int {
+	runes := []rune(xmmID)
+	xmmSafeString := string(runes[3:])
+	xmmNumber, _ := strconv.Atoi(xmmSafeString)
+
+	return xmmNumber
+}
+
 func (obj *CellsData) handleAllXmmRequests() {
-	r := regexp.MustCompile(";print(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
+	r := regexp.MustCompile(";(print|p)(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
 	for cellIndex := range obj.Data {
 		obj.Requests = append(obj.Requests, make(XmmRequests, 0))
 		obj.handleCellXmmRequests(r, cellIndex)
@@ -114,20 +141,13 @@ func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellInd
 
 	var xmmRequest XmmRequest
 
-	for i, name := range r.SubexpNames() {
-		if name == "xmmID" {
-			xmmRequest.XmmID = strings.ToUpper(match[i])
+	values := GetGroupValues(r, match)
 
-			runes := []rune(xmmRequest.XmmID)
-			xmmString := string(runes[3:])
-			xmmRequest.XmmNumber, _ = strconv.Atoi(xmmString)
-
-		}
-
-		if name == "dataFormat" {
-			xmmRequest.DataFormat = match[i]
-		}
-	}
+	xmmRequest.XmmID = strings.ToUpper(values["xmmID"])
+	xmmRequest.XmmNumber = XmmID2Number(xmmRequest.XmmID)
+	xmmRequest.DataFormat = values["dataFormat"]
+	xmmRequest.PrintFormat = values["printFormat"]
+	obj.DefaultDataFormat[xmmRequest.XmmNumber] = xmmRequest.DataFormat
 
 	obj.Requests[cellIndex] = append(obj.Requests[cellIndex], xmmRequest)
 }
