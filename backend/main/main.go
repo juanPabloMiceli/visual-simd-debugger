@@ -18,11 +18,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/zchee/kube-timeleap/pkg/ptrace"
 	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/cellshandler"
 	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/xmmhandler"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -32,6 +29,21 @@ const (
 	//MAXPROCESSTIME is the maximum wall time in seconds the process can run in the server
 	MAXPROCESSTIME time.Duration = 2
 )
+
+// FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
+type FPRegs struct {
+	Cwd      uint16     // Control Word
+	Swd      uint16     // Status Word
+	Ftw      uint16     // Tag Word
+	Fop      uint16     // Last Instruction Opcode
+	Rip      uint64     // Instruction Pointer
+	Rdp      uint64     // Data Pointer
+	Mxcsr    uint32     // MXCSR Register State
+	MxcrMask uint32     // MXCR Mask
+	StSpace  [32]uint32 // 8*16 bytes for each FP-reg = 128 bytes
+	XMMSpace [256]byte  // 16*16 bytes for each XMM-reg = 256 bytes
+	_        [24]uint32 // padding
+}
 
 //XMMData ...
 type XMMData struct {
@@ -131,65 +143,37 @@ func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xm
 	return cellRegisters
 }
 
-// // func getXMMRegs(pid int) xmmhandler.XMMHandler {
-// // 	var unixRegs syscall.PtraceRegs
-
-// // 	syscall.PtraceGetFPRegs(pid, &unixRegs)
-
-// // 	fmt.Printf("\nAddress: %p\n", &unixRegs)
-
-// // 	fpPointer := (*ptrace.FPRegs)(unsafe.Pointer(&unixRegs))
-// // 	xmmSlice := fpPointer.XMMSpace[:]
-// // 	return xmmhandler.NewXMMHandler(&xmmSlice)
-// // }
-
-func getXMMRegs(pid int) xmmhandler.XMMHandler {
-	var fpRegs ptrace.FPRegs
-
-	getFPRegs(pid, &fpRegs)
-	fmt.Printf("\nAddress fp: %p\n", &fpRegs)
-	fmt.Printf("\nValores fp: %v\n", fpRegs)
-	xmmSlice := fpRegs.XMMSpace[:]
-
-	//Aca corro el ejecutable de C
-	_, filename, _, _ := runtime.Caller(0)
-	path := path.Join(path.Dir(filename), "tracerFloder/tracer")
-	var strPid string
-	strPid = strconv.Itoa(pid)
-	exe := exec.Command(path, strPid)
-	exe.Stderr = os.Stderr
-	exe.Stdin = os.Stdin
-	exe.Stdout = os.Stdout
-
-	exe.Run()
-
-	return xmmhandler.NewXMMHandler(&xmmSlice)
-}
-
-// func getXMMRegs(pid int) xmmhandler.XMMHandler {
+// func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
 // 	var unixRegs unix.PtraceRegs
 
-// 	ptrace.GetFPRegs(pid, &unixRegs)
+// 	err := ptrace.GetFPRegs(pid, &unixRegs)
+// 	if err != nil {
+// 		//Something went wrong, time to kill
+// 		return xmmhandler.XMMHandler{}, err
+// 	}
 // 	fmt.Printf("\nAddress: %p\n", &unixRegs)
 
-// 	fpPointer := (*ptrace.FPRegs)(unsafe.Pointer(&unixRegs))
+// 	fpPointer := (*FPRegs)(unsafe.Pointer(&unixRegs))
 // 	xmmSlice := fpPointer.XMMSpace[:]
 
-// 	return xmmhandler.NewXMMHandler(&xmmSlice)
+// 	return xmmhandler.NewXMMHandler(&xmmSlice), err
 // }
 
-// func getXMMRegs(pid int) xmmhandler.XMMHandler {
-// 	var unixRegs ptrace.FPRegs
-// 	var data syscall.Iovec
+func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
+	var fpRegs FPRegs
 
-// 	getFPRegs(pid, &data)
-// 	fmt.Printf("\nAddress: %v\n", data.Base)
-// 	fmt.Printf("\nLen: %v\n", data.Len)
+	err := getFPRegs(pid, &fpRegs)
+	fmt.Printf("\nAddress fp: %p\n", &fpRegs)
 
-// 	xmmSlice := unixRegs.XMMSpace[:]
+	if err != nil {
 
-// 	return xmmhandler.NewXMMHandler(&xmmSlice)
-// }
+		fmt.Println(getProcessStatus(pid, "State:\t"))
+		return xmmhandler.XMMHandler{}, err
+	}
+	xmmSlice := fpRegs.XMMSpace[:]
+
+	return xmmhandler.NewXMMHandler(&xmmSlice), err
+}
 
 func joinWithPriority(cellRegs1 *CellRegisters, cellRegs2 *CellRegisters) CellRegisters {
 
@@ -254,7 +238,7 @@ func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int) {
 // 	return
 // }
 
-func getFPRegs(pid int, data *ptrace.FPRegs) error {
+func getFPRegs(pid int, data *FPRegs) error {
 	sysPtrace := 101
 	_, _, errno := syscall.RawSyscall6(uintptr(sysPtrace),
 		uintptr(syscall.PTRACE_GETFPREGS),
@@ -272,8 +256,8 @@ func getFPRegs(pid int, data *ptrace.FPRegs) error {
 	return nil
 }
 
-func prLimit(pid int, limit uintptr, rlimit *unix.Rlimit) error {
-	_, _, errno := unix.RawSyscall6(unix.SYS_PRLIMIT64,
+func prLimit(pid int, limit uintptr, rlimit *syscall.Rlimit) error {
+	_, _, errno := syscall.RawSyscall6(syscall.SYS_PRLIMIT64,
 		uintptr(pid),
 		limit,
 		uintptr(unsafe.Pointer(rlimit)),
@@ -287,12 +271,11 @@ func prLimit(pid int, limit uintptr, rlimit *unix.Rlimit) error {
 }
 
 func limitCPUTime(pid int, maxTime uint64) {
-	var rlimit unix.Rlimit
+	var rlimit syscall.Rlimit
 
 	rlimit.Cur = maxTime
 	rlimit.Max = maxTime
-
-	prLimit(pid, unix.RLIMIT_RTTIME, &rlimit)
+	prLimit(pid, syscall.RLIMIT_CPU, &rlimit)
 }
 
 func stateStopped(state string) bool {
@@ -306,20 +289,31 @@ func stateStopped(state string) bool {
 	return false
 }
 
-func holdTimeoutOrBreakpoint(pid int, maxDuration time.Duration, currentTime time.Time, cmd *exec.Cmd) bool {
-	timeout := currentTime
-	timeout = currentTime.Add(maxDuration * time.Second)
-	state := getProcessStatus(pid, "State:\t")
+func checkTimeout(timeoutCH chan error, resCH chan bool, pid int) {
+	select {
+	case <-time.After(2 * time.Second):
+		// fmt.Println("Is ", pid, " present: ", pidExists(pid))
+		// fmt.Println("Killing process")
+		// syscall.Kill(pid, syscall.SYS_KILL)
+		// path := "/proc/" + strconv.Itoa(pid) + "/status"
+		// echoExe := exec.Command("ls", path)
+		// echoExe.Stdout = os.Stdout
+		// echoExe
+		// fmt.Println("Is ", pid, " present: ", pidExists(pid))
+		resCH <- true
 
-	for currentTime.Before(timeout) && !stateStopped(state) {
-		currentTime = time.Now()
-		state = getProcessStatus(pid, "State:\t")
+		return
+	case <-timeoutCH:
+		fmt.Println("Process stopped before timeout")
+		resCH <- false
+		return
 	}
+}
 
-	if currentTime.After(timeout) {
-		return true
-	}
-	return false
+func waitingTime(pid int, ws *syscall.WaitStatus, timeoutCH chan error) {
+	_, waitErr := syscall.Wait4(pid, ws, syscall.WALL, nil)
+	timeoutCH <- waitErr
+
 }
 
 func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) ResponseObj {
@@ -333,54 +327,66 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 		cellIndex++
 	}
 
-	oldXmmHandler := getXMMRegs(pid)
-
-	ptrace.Cont(pid, 0)
-	currentTime := time.Now()
-
-	timeoutOcurred := holdTimeoutOrBreakpoint(pid, MAXPROCESSTIME, currentTime, cmd)
-
-	if timeoutOcurred {
-		fmt.Println("A mimir")
+	oldXmmHandler, getErr := getXMMRegs(pid)
+	if getErr != nil {
 		syscall.Kill(pid, syscall.SYS_KILL)
+		return ResponseObj{ConsoleOut: "Could not get XMM registers"}
+	}
+
+	timeoutChannel := make(chan error, 1)
+	resChannel := make(chan bool, 1)
+	// ptrace.Cont(pid, 0)
+	syscall.PtraceCont(pid, 0)
+
+	var ws syscall.WaitStatus
+
+	go checkTimeout(timeoutChannel, resChannel, pid)
+	go waitingTime(pid, &ws, timeoutChannel)
+
+	if <-resChannel == true {
+		fmt.Println("Is ", pid, " present: ", pidExists(pid))
+		fmt.Println("Killing process")
+		syscall.Kill(pid, syscall.SYS_KILL)
+		fmt.Println("Is ", pid, " present: ", pidExists(pid))
+
 		return ResponseObj{ConsoleOut: "Execution timeout"}
 	}
 
-	// var ws syscall.WaitStatus
-
-	// syscall.Wait4(pid, &ws, syscall.WALL, nil)
-
 	for cellIndex < len(cellsData.Data) {
-		newXmmHandler := getXMMRegs(pid)
+		newXmmHandler, getErr := getXMMRegs(pid)
+		if getErr != nil {
+			syscall.Kill(pid, syscall.SYS_KILL)
+			return ResponseObj{ConsoleOut: "Could not get XMM registers"}
+		}
+
 		updatePrintFormat(cellsData, cellIndex)
 		requestedCellRegisters := getRequestedRegisters(cellsData, &newXmmHandler, cellIndex)
 		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, cellsData, cellIndex)
 		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
 		oldXmmHandler = newXmmHandler
-		fmt.Println(oldXmmHandler)
 
 		res.CellRegs = append(res.CellRegs, selectedCellRegisters)
 		cellIndex++
-		ptrace.Cont(pid, 0)
-		currentTime = time.Now()
-		fmt.Println("Empiezo")
+		// ptrace.Cont(pid, 0)
+		syscall.PtraceCont(pid, 0)
+		go checkTimeout(timeoutChannel, resChannel, pid)
+		go waitingTime(pid, &ws, timeoutChannel)
 
-		timeoutOcurred = holdTimeoutOrBreakpoint(pid, MAXPROCESSTIME, currentTime, cmd)
-
-		if timeoutOcurred {
-			fmt.Println("A mimir")
+		if <-resChannel == true {
+			fmt.Println("Is ", pid, " present: ", pidExists(pid))
+			fmt.Println("Killing process")
 			syscall.Kill(pid, syscall.SYS_KILL)
+			fmt.Println("Is ", pid, " present: ", pidExists(pid))
+
 			return ResponseObj{ConsoleOut: "Execution timeout"}
 		}
-		// syscall.Wait4(pid, &ws, syscall.WALL, nil)
-		fmt.Println("Termino")
 
 	}
 
-	// fmt.Printf("Exited: %v\n", ws.Exited())
-	// fmt.Printf("Exited status: %v\n", ws.ExitStatus())
-	res.ConsoleOut = "Exited status: " /*+ strconv.Itoa(ws.ExitStatus())*/
+	fmt.Printf("Exited: %v\n", ws.Exited())
+	fmt.Printf("Exited status: %v\n", ws.ExitStatus())
+	res.ConsoleOut = "Exited status: " + strconv.Itoa(ws.ExitStatus())
 	fmt.Println(res)
 
 	return res
@@ -404,6 +410,15 @@ func getProcessStatus(pid int, paramString string) string {
 	contentStr := string(content)
 	index := strings.Index(contentStr, paramString)
 	return string(contentStr[index+len(paramString)])
+}
+
+func pidExists(pid int) bool {
+
+	_, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func codeSave(w http.ResponseWriter, req *http.Request) {
@@ -469,17 +484,17 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	nasmCmd.Stderr = &stderr
 	nasmErr := nasmCmd.Start()
 
+	if nasmErr != nil {
+		response(&w, ResponseObj{ConsoleOut: stderr.String()})
+		return
+	}
+
 	nasmPid := nasmCmd.Process.Pid
 
 	fmt.Println("\n\nNASM")
 	printLibraries(nasmPid)
 
 	nasmCmd.Wait()
-
-	if nasmErr != nil {
-		response(&w, ResponseObj{ConsoleOut: stderr.String()})
-		return
-	}
 
 	linkerPath, linkerPathErr := exec.LookPath("ld")
 
@@ -492,6 +507,11 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	linkingCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Start()
 
+	if linkingErr != nil {
+		response(&w, ResponseObj{ConsoleOut: stderr.String()})
+		return
+	}
+
 	ldPid := linkingCmd.Process.Pid
 
 	fmt.Println("\n\nLINKER")
@@ -499,10 +519,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	linkingCmd.Wait()
 
-	if linkingErr != nil {
-		response(&w, ResponseObj{ConsoleOut: stderr.String()})
-		return
-	}
 	_, filename, _, ok := runtime.Caller(0)
 
 	if !ok {
@@ -518,6 +534,10 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	exeCmd.SysProcAttr = &syscall.SysProcAttr{Ptrace: true}
 
 	startErr := exeCmd.Start()
+	if startErr != nil {
+		response(&w, ResponseObj{ConsoleOut: stderr.String()})
+		return
+	}
 
 	pid := exeCmd.Process.Pid
 
@@ -525,16 +545,13 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(pid)
 	printLibraries(pid)
 
-	if startErr != nil {
-		panic(startErr)
-	}
-
 	exeCmd.Wait()
 
 	limitCPUTime(pid, MAXCPUTIME)
 
 	responseObj := cellsLoop(&cellsData, pid, exeCmd)
 	response(&w, responseObj)
+	fmt.Printf("\n\nfinished\n\n")
 
 }
 

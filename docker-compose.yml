@@ -1,0 +1,18 @@
+version: '3'
+services:
+  backend:
+    build:
+      context: .
+      network: host
+    image: juampi1998/visual-simd-backend
+    ports:
+      - 8080:8080
+    
+
+  frontend:
+    build:
+      context: .
+      network: host
+    image: juampi1998/visual-simd-frontend
+    ports:
+      - 3000:3000
