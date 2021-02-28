@@ -230,14 +230,6 @@ func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int) {
 
 }
 
-// func ptrace(request int, pid int, addr uintptr, data uintptr) (err error) {
-// 	_, _, e1 := Syscall6(SYS_PTRACE, uintptr(request), uintptr(pid), uintptr(addr), uintptr(data), 0, 0)
-// 	if e1 != 0 {
-// 		err = errnoErr(e1)
-// 	}
-// 	return
-// }
-
 func getFPRegs(pid int, data *FPRegs) error {
 	sysPtrace := 101
 	_, _, errno := syscall.RawSyscall6(uintptr(sysPtrace),
@@ -292,14 +284,6 @@ func stateStopped(state string) bool {
 func checkTimeout(timeoutCH chan error, resCH chan bool, pid int) {
 	select {
 	case <-time.After(2 * time.Second):
-		// fmt.Println("Is ", pid, " present: ", pidExists(pid))
-		// fmt.Println("Killing process")
-		// syscall.Kill(pid, syscall.SYS_KILL)
-		// path := "/proc/" + strconv.Itoa(pid) + "/status"
-		// echoExe := exec.Command("ls", path)
-		// echoExe.Stdout = os.Stdout
-		// echoExe
-		// fmt.Println("Is ", pid, " present: ", pidExists(pid))
 		resCH <- true
 
 		return
@@ -335,7 +319,6 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 
 	timeoutChannel := make(chan error, 1)
 	resChannel := make(chan bool, 1)
-	// ptrace.Cont(pid, 0)
 	syscall.PtraceCont(pid, 0)
 
 	var ws syscall.WaitStatus
@@ -368,7 +351,6 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 
 		res.CellRegs = append(res.CellRegs, selectedCellRegisters)
 		cellIndex++
-		// ptrace.Cont(pid, 0)
 		syscall.PtraceCont(pid, 0)
 		go checkTimeout(timeoutChannel, resChannel, pid)
 		go waitingTime(pid, &ws, timeoutChannel)
