@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"io/ioutil"
 	"net/http"
@@ -24,10 +23,7 @@ import (
 
 const (
 	//MAXCPUTIME is the maximum time in seconds the process can be scheduled
-	MAXCPUTIME uint64 = 1
-
-	//MAXPROCESSTIME is the maximum wall time in seconds the process can run in the server
-	MAXPROCESSTIME time.Duration = 2
+	MAXCPUTIME uint64 = 2
 )
 
 // FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
@@ -143,22 +139,6 @@ func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xm
 	return cellRegisters
 }
 
-// func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
-// 	var unixRegs unix.PtraceRegs
-
-// 	err := ptrace.GetFPRegs(pid, &unixRegs)
-// 	if err != nil {
-// 		//Something went wrong, time to kill
-// 		return xmmhandler.XMMHandler{}, err
-// 	}
-// 	fmt.Printf("\nAddress: %p\n", &unixRegs)
-
-// 	fpPointer := (*FPRegs)(unsafe.Pointer(&unixRegs))
-// 	xmmSlice := fpPointer.XMMSpace[:]
-
-// 	return xmmhandler.NewXMMHandler(&xmmSlice), err
-// }
-
 func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
 	var fpRegs FPRegs
 
@@ -167,7 +147,6 @@ func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
 
 	if err != nil {
 
-		fmt.Println(getProcessStatus(pid, "State:\t"))
 		return xmmhandler.XMMHandler{}, err
 	}
 	xmmSlice := fpRegs.XMMSpace[:]
@@ -270,34 +249,16 @@ func limitCPUTime(pid int, maxTime uint64) {
 	prLimit(pid, syscall.RLIMIT_CPU, &rlimit)
 }
 
-func stateStopped(state string) bool {
-	stopedStates := []string{"t", "T", "Z", "X"}
+func killProcess(pid int, err string) ResponseObj {
+	killErr := syscall.Kill(pid, syscall.SYS_KILL)
+	if pidExists(pid) {
+		fmt.Println("err: ", err)
+		fmt.Println("pid: ", pid)
+		fmt.Println("killErr: ", killErr.Error())
+		return ResponseObj{ConsoleOut: err + "\nCould not kill process: " + strconv.Itoa(pid) + "\nError: " + killErr.Error()}
 
-	for _, stopState := range stopedStates {
-		if state == stopState {
-			return true
-		}
 	}
-	return false
-}
-
-func checkTimeout(timeoutCH chan error, resCH chan bool, pid int) {
-	select {
-	case <-time.After(2 * time.Second):
-		resCH <- true
-
-		return
-	case <-timeoutCH:
-		fmt.Println("Process stopped before timeout")
-		resCH <- false
-		return
-	}
-}
-
-func waitingTime(pid int, ws *syscall.WaitStatus, timeoutCH chan error) {
-	_, waitErr := syscall.Wait4(pid, ws, syscall.WALL, nil)
-	timeoutCH <- waitErr
-
+	return ResponseObj{ConsoleOut: err + "\nProcess killed succesfully."}
 }
 
 func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) ResponseObj {
@@ -313,33 +274,26 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 
 	oldXmmHandler, getErr := getXMMRegs(pid)
 	if getErr != nil {
-		syscall.Kill(pid, syscall.SYS_KILL)
-		return ResponseObj{ConsoleOut: "Could not get XMM registers"}
+		return killProcess(pid, "Could not get XMM registers.")
 	}
 
-	timeoutChannel := make(chan error, 1)
-	resChannel := make(chan bool, 1)
-	syscall.PtraceCont(pid, 0)
+	execErr := syscall.PtraceCont(pid, 0)
+
+	if execErr != nil {
+		return killProcess(pid, execErr.Error())
+	}
 
 	var ws syscall.WaitStatus
 
-	go checkTimeout(timeoutChannel, resChannel, pid)
-	go waitingTime(pid, &ws, timeoutChannel)
-
-	if <-resChannel == true {
-		fmt.Println("Is ", pid, " present: ", pidExists(pid))
-		fmt.Println("Killing process")
-		syscall.Kill(pid, syscall.SYS_KILL)
-		fmt.Println("Is ", pid, " present: ", pidExists(pid))
-
-		return ResponseObj{ConsoleOut: "Execution timeout"}
+	_, waitErr := syscall.Wait4(pid, &ws, syscall.WALL, nil)
+	if waitErr != nil {
+		return killProcess(pid, waitErr.Error())
 	}
 
 	for cellIndex < len(cellsData.Data) {
 		newXmmHandler, getErr := getXMMRegs(pid)
 		if getErr != nil {
-			syscall.Kill(pid, syscall.SYS_KILL)
-			return ResponseObj{ConsoleOut: "Could not get XMM registers"}
+			return killProcess(pid, "Could not get XMM registers.")
 		}
 
 		updatePrintFormat(cellsData, cellIndex)
@@ -348,28 +302,27 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
 		oldXmmHandler = newXmmHandler
+		fmt.Println(oldXmmHandler)
 
 		res.CellRegs = append(res.CellRegs, selectedCellRegisters)
 		cellIndex++
-		syscall.PtraceCont(pid, 0)
-		go checkTimeout(timeoutChannel, resChannel, pid)
-		go waitingTime(pid, &ws, timeoutChannel)
-
-		if <-resChannel == true {
-			fmt.Println("Is ", pid, " present: ", pidExists(pid))
-			fmt.Println("Killing process")
-			syscall.Kill(pid, syscall.SYS_KILL)
-			fmt.Println("Is ", pid, " present: ", pidExists(pid))
-
-			return ResponseObj{ConsoleOut: "Execution timeout"}
+		execErr = syscall.PtraceCont(pid, 0)
+		if execErr != nil {
+			return killProcess(pid, execErr.Error())
 		}
+
+		_, waitErr = syscall.Wait4(pid, &ws, syscall.WALL, nil)
+		if waitErr != nil {
+			return killProcess(pid, waitErr.Error())
+		}
+
+		fmt.Println(pidExists(pid))
 
 	}
 
 	fmt.Printf("Exited: %v\n", ws.Exited())
 	fmt.Printf("Exited status: %v\n", ws.ExitStatus())
 	res.ConsoleOut = "Exited status: " + strconv.Itoa(ws.ExitStatus())
-	fmt.Println(res)
 
 	return res
 }
@@ -403,8 +356,54 @@ func pidExists(pid int) bool {
 	return true
 }
 
+func deleteFile(filePath string) error {
+	if fileExists(filePath) {
+		delExe := exec.Command("rm", filePath)
+		delErr := delExe.Run()
+		return delErr
+	}
+
+	return nil
+
+}
+
+//deleteFiles removes the 3 files created "output.asm", "output.o" and "output"
+//So that next request is clean
+func deleteFiles(filesPath string) error {
+
+	err := deleteFile(path.Join(filesPath, "output"))
+	if err != nil {
+		return err
+	}
+	err = deleteFile(path.Join(filesPath, "output.o"))
+	if err != nil {
+		return err
+	}
+	err = deleteFile(path.Join(filesPath, "output.asm"))
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+func fileExists(filePath string) bool {
+	_, err := os.Stat(filePath)
+	return err == nil
+}
+
 func codeSave(w http.ResponseWriter, req *http.Request) {
 
+	_, filename, _, ok := runtime.Caller(0)
+
+	if !ok {
+		response(&w, ResponseObj{ConsoleOut: "Could't find server path"})
+		return
+	}
+
+	filepath := path.Dir(filename)
+	//Deleting files just in case previous execution failed to do that
+	deleteFiles(filepath)
 	enableCors(&w)
 
 	//Testing JSON Request
@@ -461,22 +460,40 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	nasmCmd := exec.Command(nasmPath, "-f", "elf64", "-g", "-F", "DWARF", "output.asm", "-o", "output.o")
-	var stderr bytes.Buffer
-	nasmCmd.Stderr = &stderr
-	nasmErr := nasmCmd.Start()
+	mjPath, mjPathError := exec.LookPath("minijail0")
 
-	if nasmErr != nil {
-		response(&w, ResponseObj{ConsoleOut: stderr.String()})
+	if mjPathError != nil {
+		response(&w, ResponseObj{ConsoleOut: "Could't find minijail executable path"})
 		return
 	}
 
-	nasmPid := nasmCmd.Process.Pid
+	nasmCmd := exec.Command(mjPath, "-n", "-S", "../policies/nasm.policy", nasmPath, "-f", "elf64", "-g", "-F", "DWARF", "output.asm", "-o", "output.o")
 
-	fmt.Println("\n\nNASM")
-	printLibraries(nasmPid)
+	var stderr bytes.Buffer
+	nasmCmd.Stderr = &stderr
+	nasmErr := nasmCmd.Run()
 
-	nasmCmd.Wait()
+	if nasmErr != nil || !fileExists(path.Join(filepath, "output.o")) {
+		if stderr.String() == "" {
+			stderr.WriteString("NASM execution failed")
+		}
+		res := ResponseObj{ConsoleOut: stderr.String()}
+		delErr := deleteFiles(filepath)
+		if delErr != nil {
+			res.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
+			fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
+		}
+		response(&w, res)
+		return
+	}
+	fmt.Println("Program compiled")
+
+	// nasmPid := nasmCmd.Process.Pid
+
+	// fmt.Println("\n\nNASM")
+	// printLibraries(nasmPid)
+
+	// nasmErr = nasmCmd.Wait()
 
 	linkerPath, linkerPathErr := exec.LookPath("ld")
 
@@ -485,59 +502,81 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	linkingCmd := exec.Command(linkerPath, "-o", "output", "output.o")
+	linkingCmd := exec.Command(mjPath, "-n", "-S", "../policies/ld.policy", linkerPath, "-o", "output", "output.o")
+
 	linkingCmd.Stderr = &stderr
-	linkingErr := linkingCmd.Start()
+	linkingErr := linkingCmd.Run()
 
-	if linkingErr != nil {
-		response(&w, ResponseObj{ConsoleOut: stderr.String()})
+	if linkingErr != nil || !fileExists(path.Join(filepath, "output")) {
+		if stderr.String() == "" {
+			stderr.WriteString("Linker execution failed")
+		}
+		res := ResponseObj{ConsoleOut: stderr.String()}
+		delErr := deleteFiles(filepath)
+		if delErr != nil {
+			res.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
+			fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
+		}
+		response(&w, res)
 		return
 	}
+	fmt.Println("Program Linked")
 
-	ldPid := linkingCmd.Process.Pid
+	// ldPid := linkingCmd.Process.Pid
 
-	fmt.Println("\n\nLINKER")
-	printLibraries(ldPid)
+	// fmt.Println("\n\nLINKER")
+	// printLibraries(ldPid)
 
-	linkingCmd.Wait()
+	// linkingCmd.Wait()
 
-	_, filename, _, ok := runtime.Caller(0)
+	fullPath := path.Join(filepath, "output")
 
-	if !ok {
-		response(&w, ResponseObj{ConsoleOut: "Could't find server path"})
-		return
-	}
-
-	fullPath := path.Join(path.Dir(filename), "output")
 	exeCmd := exec.Command(fullPath)
+
+	// exeCmd := exec.Command("minijail0", "-n", "-S", "../policies/exec.policy", fullPath)
 	exeCmd.Stderr = os.Stderr
 	exeCmd.Stdin = os.Stdin
 	exeCmd.Stdout = os.Stdout
 	exeCmd.SysProcAttr = &syscall.SysProcAttr{Ptrace: true}
+	runtime.LockOSThread()
 
+	fmt.Println("Starting...")
 	startErr := exeCmd.Start()
+
 	if startErr != nil {
-		response(&w, ResponseObj{ConsoleOut: stderr.String()})
+		res := ResponseObj{ConsoleOut: startErr.Error()}
+		delErr := deleteFiles(filepath)
+		if delErr != nil {
+			res.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
+			fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
+		}
+		response(&w, res)
 		return
 	}
 
 	pid := exeCmd.Process.Pid
-
-	fmt.Println("\n\nEXEC")
-	fmt.Println(pid)
-	printLibraries(pid)
-
-	exeCmd.Wait()
-
 	limitCPUTime(pid, MAXCPUTIME)
 
+	// fmt.Println("\n\nEXEC")
+	// fmt.Println(pid)
+	// printLibraries(pid)
+	fmt.Println("Waiting process ", pid)
+	exeCmd.Wait()
+
 	responseObj := cellsLoop(&cellsData, pid, exeCmd)
+
+	runtime.UnlockOSThread()
+	delErr := deleteFiles(filepath)
+	if delErr != nil {
+		responseObj.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
+		fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
+	}
 	response(&w, responseObj)
-	fmt.Printf("\n\nfinished\n\n")
 
 }
 
 func main() {
+	runtime.GOMAXPROCS(1)
 
 	http.HandleFunc("/codeSave", codeSave)
 
