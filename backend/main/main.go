@@ -146,7 +146,7 @@ func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
 	fmt.Printf("\nAddress fp: %p\n", &fpRegs)
 
 	if err != nil {
-
+		fmt.Println(err)
 		return xmmhandler.XMMHandler{}, err
 	}
 	xmmSlice := fpRegs.XMMSpace[:]
@@ -250,18 +250,18 @@ func limitCPUTime(pid int, maxTime uint64) {
 }
 
 func killProcess(pid int, err string) ResponseObj {
+	fmt.Println("Killing Process")
 	killErr := syscall.Kill(pid, syscall.SYS_KILL)
 	if pidExists(pid) {
-		fmt.Println("err: ", err)
-		fmt.Println("pid: ", pid)
-		fmt.Println("killErr: ", killErr.Error())
 		return ResponseObj{ConsoleOut: err + "\nCould not kill process: " + strconv.Itoa(pid) + "\nError: " + killErr.Error()}
 
 	}
+	fmt.Println("Process killed succesfully.")
+
 	return ResponseObj{ConsoleOut: err + "\nProcess killed succesfully."}
 }
 
-func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) ResponseObj {
+func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 
 	res := ResponseObj{CellRegs: make([]CellRegisters, 0)}
 
@@ -277,21 +277,27 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 		return killProcess(pid, "Could not get XMM registers.")
 	}
 
+	var ws syscall.WaitStatus
 	execErr := syscall.PtraceCont(pid, 0)
 
 	if execErr != nil {
 		return killProcess(pid, execErr.Error())
 	}
 
-	var ws syscall.WaitStatus
-
 	_, waitErr := syscall.Wait4(pid, &ws, syscall.WALL, nil)
+
 	if waitErr != nil {
 		return killProcess(pid, waitErr.Error())
+
+	}
+
+	if !pidExists(pid) {
+		return killProcess(pid, "You don't have permission to use syscalls.")
 	}
 
 	for cellIndex < len(cellsData.Data) {
 		newXmmHandler, getErr := getXMMRegs(pid)
+		fmt.Println(newXmmHandler)
 		if getErr != nil {
 			return killProcess(pid, "Could not get XMM registers.")
 		}
@@ -302,7 +308,7 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
 		oldXmmHandler = newXmmHandler
-		fmt.Println(oldXmmHandler)
+		// fmt.Println(oldXmmHandler)
 
 		res.CellRegs = append(res.CellRegs, selectedCellRegisters)
 		cellIndex++
@@ -315,8 +321,9 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, cmd *exec.Cmd) Respon
 		if waitErr != nil {
 			return killProcess(pid, waitErr.Error())
 		}
-
-		fmt.Println(pidExists(pid))
+		if !pidExists(pid) && cellIndex < len(cellsData.Data)-1 {
+			return killProcess(pid, "You don't have permission to use syscalls.")
+		}
 
 	}
 
@@ -369,22 +376,21 @@ func deleteFile(filePath string) error {
 
 //deleteFiles removes the 3 files created "output.asm", "output.o" and "output"
 //So that next request is clean
-func deleteFiles(filesPath string) error {
+func deleteFiles(filesPath string, res *ResponseObj) {
 
-	err := deleteFile(path.Join(filesPath, "output"))
-	if err != nil {
-		return err
-	}
-	err = deleteFile(path.Join(filesPath, "output.o"))
-	if err != nil {
-		return err
-	}
-	err = deleteFile(path.Join(filesPath, "output.asm"))
-	if err != nil {
-		return err
-	}
+	err1 := deleteFile(path.Join(filesPath, "output"))
+	err2 := deleteFile(path.Join(filesPath, "output.o"))
+	err3 := deleteFile(path.Join(filesPath, "output.asm"))
 
-	return err
+	if err1 != nil {
+		res.ConsoleOut += "\n Could not remove exeecutable from server. Error: " + err1.Error()
+	}
+	if err2 != nil {
+		res.ConsoleOut += "\n Could not remove binary from server. Error: " + err2.Error()
+	}
+	if err3 != nil {
+		res.ConsoleOut += "\n Could not remove text file from server. Error: " + err3.Error()
+	}
 }
 
 func fileExists(filePath string) bool {
@@ -403,7 +409,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	filepath := path.Dir(filename)
 	//Deleting files just in case previous execution failed to do that
-	deleteFiles(filepath)
+	deleteFiles(filepath, &ResponseObj{})
 	enableCors(&w)
 
 	//Testing JSON Request
@@ -478,11 +484,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 			stderr.WriteString("NASM execution failed")
 		}
 		res := ResponseObj{ConsoleOut: stderr.String()}
-		delErr := deleteFiles(filepath)
-		if delErr != nil {
-			res.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
-			fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
-		}
+		deleteFiles(filepath, &res)
 		response(&w, res)
 		return
 	}
@@ -512,11 +514,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 			stderr.WriteString("Linker execution failed")
 		}
 		res := ResponseObj{ConsoleOut: stderr.String()}
-		delErr := deleteFiles(filepath)
-		if delErr != nil {
-			res.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
-			fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
-		}
+		deleteFiles(filepath, &res)
 		response(&w, res)
 		return
 	}
@@ -531,46 +529,80 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	fullPath := path.Join(filepath, "output")
 
-	exeCmd := exec.Command(fullPath)
+	microjailPath, microErr := exec.LookPath("microjail")
+	if microErr != nil {
+		response(&w, ResponseObj{ConsoleOut: "Could't find microjail executable path"})
+		return
+	}
+	exeCmd := exec.Command(microjailPath, fullPath)
 
-	// exeCmd := exec.Command("minijail0", "-n", "-S", "../policies/exec.policy", fullPath)
 	exeCmd.Stderr = os.Stderr
 	exeCmd.Stdin = os.Stdin
 	exeCmd.Stdout = os.Stdout
 	exeCmd.SysProcAttr = &syscall.SysProcAttr{Ptrace: true}
 	runtime.LockOSThread()
 
-	fmt.Println("Starting...")
 	startErr := exeCmd.Start()
 
 	if startErr != nil {
 		res := ResponseObj{ConsoleOut: startErr.Error()}
-		delErr := deleteFiles(filepath)
-		if delErr != nil {
-			res.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
-			fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
-		}
+		deleteFiles(filepath, &res)
 		response(&w, res)
 		return
 	}
 
-	pid := exeCmd.Process.Pid
-	limitCPUTime(pid, MAXCPUTIME)
+	microjailPID := exeCmd.Process.Pid
 
-	// fmt.Println("\n\nEXEC")
-	// fmt.Println(pid)
-	// printLibraries(pid)
-	fmt.Println("Waiting process ", pid)
+	limitCPUTime(microjailPID, MAXCPUTIME)
 	exeCmd.Wait()
 
-	responseObj := cellsLoop(&cellsData, pid, exeCmd)
+	optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC|0x200000) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
+	if optErr != nil {
+		res := killProcess(microjailPID, optErr.Error())
+		deleteFiles(filepath, &res)
+		response(&w, res)
+		return
+	}
+
+	//One continue such that the C execve is made
+	execErr := syscall.PtraceCont(microjailPID, 0)
+	if execErr != nil {
+		res := killProcess(microjailPID, execErr.Error())
+		deleteFiles(filepath, &res)
+		response(&w, res)
+		return
+	}
+
+	var ws syscall.WaitStatus
+	_, waitErr := syscall.Wait4(microjailPID, &ws, syscall.WALL, nil)
+	if waitErr != nil {
+		res := killProcess(microjailPID, waitErr.Error())
+		deleteFiles(filepath, &res)
+		response(&w, res)
+		return
+	}
+
+	if !pidExists(microjailPID) {
+		res := ResponseObj{ConsoleOut: "Microjail error."}
+		deleteFiles(filepath, &res)
+		response(&w, res)
+		return
+	}
+
+	//Re enable seccomp
+	optErr = syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x100000 = PTRACE_O_SUSPEND_SECCOMP
+	if optErr != nil {
+		res := ResponseObj{ConsoleOut: optErr.Error()}
+		deleteFiles(filepath, &res)
+		response(&w, res)
+		return
+
+	}
+
+	responseObj := cellsLoop(&cellsData, microjailPID)
 
 	runtime.UnlockOSThread()
-	delErr := deleteFiles(filepath)
-	if delErr != nil {
-		responseObj.ConsoleOut += "\n Could not remove server files. Error: " + delErr.Error()
-		fmt.Println("\n Could not remove server files. Error: " + delErr.Error())
-	}
+	deleteFiles(filepath, &responseObj)
 	response(&w, responseObj)
 
 }
