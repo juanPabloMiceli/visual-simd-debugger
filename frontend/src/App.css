@@ -35,13 +35,24 @@
   margin-top: 10px;
 }
 
-#DelCellButton{
+#delCellButton{
   position: relative;
   top: -0.4cm;
   display: inline-block;
   min-width: 20vw;
   min-height: 4vh;
   margin-top: 10px;
+}
+
+#copyToClipButton{
+  position: relative;
+  top: -0.4cm;
+  min-width: 20vw;
+  min-height: 4vh;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  /* margin-top: 10px; */
 }
 
 #output_text{

@@ -7,6 +7,7 @@ const ContextXMMRegisters = React.createContext()
 const ContextSubmit = React.createContext()
 const ContextNewCell = React.createContext()
 const ContextDeleteCell = React.createContext()
+const ContextCopyToClipBoard = React.createContext()
 const local_host = "http://localhost:8080"
 
 export function useContextData(){
@@ -31,6 +32,10 @@ export function useContextNewCell(){
 
 export function useContextDeleteCell(){
     return useContext(ContextDeleteCell)
+}
+
+export function useContextCopyToClipBoard(){
+    return useContext(ContextCopyToClipBoard)
 }
 
 
@@ -94,6 +99,43 @@ function Provider({children}){
         }
     }
 
+    function wantToPrint(cell){
+
+        if(cell.code.toLowerCase().includes(';nope')){
+            return false;
+        }
+        return true;
+    }
+
+    function copyStringToClipboard (str) {
+        var el = document.createElement('textarea');
+        el.value = str;
+        el.setAttribute('readonly', '');
+        el.style = {position: 'absolute', left: '-9999px'};
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+     }
+
+    function copyToClipBoard(e){
+        e.preventDefault()
+        let resText = ""
+
+        for(let i=0; i<TotalCells; i++){
+            if(wantToPrint(CellsData[i]) && CellsData[i].code !== ""){
+                resText += CellsData[i].code + "\n\n"
+                console.log(CellsData[i].code)
+            }
+        }
+
+        if(resText === ""){
+            resText += " "
+        }
+
+        copyStringToClipboard(resText)
+        
+    }
     function updateXMMData(data){
         let copy = JSON.parse(JSON.stringify(CellsData))
         for(let i = 0; i < copy.length; i++){
@@ -128,11 +170,13 @@ function Provider({children}){
             <ContextSubmit.Provider value={submitCode}>
                 <ContextNewCell.Provider value={newCell}>
                     <ContextDeleteCell.Provider value={deleteCell}>
-                        <ContextUpdateData.Provider value={updateCodeData}>
-                            <ContextXMMRegisters.Provider value={getXMMRegisters}>
-                                {children}
-                            </ContextXMMRegisters.Provider>
-                        </ContextUpdateData.Provider>
+                        <ContextCopyToClipBoard.Provider value={copyToClipBoard}>
+                            <ContextUpdateData.Provider value={updateCodeData}>
+                                <ContextXMMRegisters.Provider value={getXMMRegisters}>
+                                    {children}
+                                </ContextXMMRegisters.Provider>
+                            </ContextUpdateData.Provider>
+                        </ContextCopyToClipBoard.Provider>
                     </ContextDeleteCell.Provider>
                 </ContextNewCell.Provider>
             </ContextSubmit.Provider>

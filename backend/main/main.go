@@ -292,7 +292,7 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 	}
 
 	if !pidExists(pid) {
-		return killProcess(pid, "You don't have permission to use syscalls.")
+		return killProcess(pid, "Something stopped the program.")
 	}
 
 	for cellIndex < len(cellsData.Data) {
@@ -322,7 +322,7 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 			return killProcess(pid, waitErr.Error())
 		}
 		if !pidExists(pid) && cellIndex < len(cellsData.Data)-1 {
-			return killProcess(pid, "You don't have permission to use syscalls.")
+			return killProcess(pid, "Something stopped the program.")
 		}
 
 	}
@@ -555,6 +555,8 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	limitCPUTime(microjailPID, MAXCPUTIME)
 	exeCmd.Wait()
+
+	// optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
 
 	optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC|0x200000) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
 	if optErr != nil {
