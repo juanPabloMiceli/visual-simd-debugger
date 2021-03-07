@@ -1,4 +1,5 @@
 import axios from 'axios'
+import autosize from 'autosize'
 import React, {useContext, useState} from 'react'
 
 const ContextData  = React.createContext()
@@ -6,6 +7,7 @@ const ContextUpdateData = React.createContext()
 const ContextXMMRegisters = React.createContext()
 const ContextSubmit = React.createContext()
 const ContextNewCell = React.createContext()
+const ContextNewCellDown = React.createContext()
 const ContextDeleteCell = React.createContext()
 const ContextCopyToClipBoard = React.createContext()
 const local_host = "http://localhost:8080"
@@ -28,6 +30,10 @@ export function useContextSubmit(){
 
 export function useContextNewCell(){
     return useContext(ContextNewCell)
+}
+
+export function useContextNewCellDown(){
+    return useContext(ContextNewCellDown)
 }
 
 export function useContextDeleteCell(){
@@ -80,20 +86,35 @@ function Provider({children}){
         })
     }
 
-    function newCell(e){
+
+    function fixIndexing(cells){
+
+        for(let i=0; i<cells.length; i++){
+            cells[i] = {id: i, code: cells[i].code, output: cells[i].output}
+        }
+
+        return cells
+    }
+    function newCell(e, buttonNumber){
         e.preventDefault()
+        let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
+        setCellsData([initCell(0)])
         
-        setCellsData(CellsData.concat(initCell(TotalCells)))
+        copy.splice(buttonNumber, 0, initCell(TotalCells))
+
+        copy = fixIndexing(copy)
+        setCellsData(copy)
+
         setTotalCells(TotalCells + 1)
     }
 
-    function deleteCell(e){
-        e.preventDefault()
 
+    function deleteCell(e, buttonNumber){
+        e.preventDefault()
         if(TotalCells > 1){
-            let copy = JSON.parse(JSON.stringify(CellsData))
-            console.log(copy)
-            copy.pop()
+            let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
+            copy.splice(buttonNumber, 1)
+            copy = fixIndexing(copy)
             setCellsData(copy)
             setTotalCells(TotalCells - 1)
         }
@@ -146,11 +167,10 @@ function Provider({children}){
 
     }
 
-    function updateCodeData(cellId, newCode){
+    function updateCodeData(cellId, newCode, textArea){
         let copy = JSON.parse(JSON.stringify(CellsData))
         copy[cellId].code = newCode
         setCellsData(copy)
-
     }
 
     function getXMMRegisters(cellId){
@@ -169,15 +189,15 @@ function Provider({children}){
         <ContextData.Provider value={VisualizerData}>
             <ContextSubmit.Provider value={submitCode}>
                 <ContextNewCell.Provider value={newCell}>
-                    <ContextDeleteCell.Provider value={deleteCell}>
-                        <ContextCopyToClipBoard.Provider value={copyToClipBoard}>
-                            <ContextUpdateData.Provider value={updateCodeData}>
-                                <ContextXMMRegisters.Provider value={getXMMRegisters}>
-                                    {children}
-                                </ContextXMMRegisters.Provider>
-                            </ContextUpdateData.Provider>
-                        </ContextCopyToClipBoard.Provider>
-                    </ContextDeleteCell.Provider>
+                        <ContextDeleteCell.Provider value={deleteCell}>
+                            <ContextCopyToClipBoard.Provider value={copyToClipBoard}>
+                                <ContextUpdateData.Provider value={updateCodeData}>
+                                    <ContextXMMRegisters.Provider value={getXMMRegisters}>
+                                        {children}
+                                    </ContextXMMRegisters.Provider>
+                                </ContextUpdateData.Provider>
+                            </ContextCopyToClipBoard.Provider>
+                        </ContextDeleteCell.Provider>
                 </ContextNewCell.Provider>
             </ContextSubmit.Provider>
         </ContextData.Provider>

@@ -1,36 +1,36 @@
 import React from 'react';
 import Cell from './Cell'
-import { useContextData, useContextSubmit, useContextNewCell, useContextDeleteCell, useContextCopyToClipBoard } from "./Context" 
+import { useContextData, useContextSubmit, useContextCopyToClipBoard } from "./Context" 
 import TextOutput from './TextOutput';
+import FileInput from './FileInput'
+
 
 function SimdVisualizer(){
 
     const submitCode = useContextSubmit() 
-    const newCell = useContextNewCell()
-    const deleteCell = useContextDeleteCell()
     const copyToClipBoard = useContextCopyToClipBoard()
     const VisualizerData = useContextData()
 
     console.log(VisualizerData)
 
     let CellComponents = VisualizerData.CellsData.map(cell => {
-        return (<div>
-                <Cell
+        return (<Cell
                     key={cell.id}
-                    id={cell.id}
-                    />
-                </div>)
+                    id={cell.id}/>)
     })
 
 
     return (
         <div>
-            <button className="btn btn-success" id="submitButton" onClick={submitCode}>Submit Code</button>
+            <div className="submitContainer">
+                <button className="btn btn-success" id="submitButton" onClick={submitCode}>Submit Code</button>
+            </div>
             {CellComponents}
-            <button className="btn btn-newCell" id="newCellButton" onClick={newCell}>New Cell</button>
-            <button className="btn btn-DelCell" id="delCellButton" onClick={deleteCell}>Delete Cell</button>
-            <button className="btn btn-DelCell" id="copyToClipButton" onClick={copyToClipBoard}>Copy code to clipboard</button>
+            <div className="copyContainer">
+                <button className="btn btn-DelCell" id="copyToClipButton" onClick={copyToClipBoard}>Copy code to clipboard</button>
+            </div>
             <TextOutput/>
+            <FileInput/>
         </div>
     );
 }

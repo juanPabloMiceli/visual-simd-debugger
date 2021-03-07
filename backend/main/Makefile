@@ -1,4 +1,4 @@
-make output: output.o
+output: output.o
 	ld -o output output.o
 
 output.o: output.asm 

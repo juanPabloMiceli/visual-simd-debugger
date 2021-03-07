@@ -1,4 +1,5 @@
 import React from 'react';
+import "./components/icons";
 import './App.css';
 import SimdVisualizer from './components/SimdVisualizer';
 import Provider from './components/Context'

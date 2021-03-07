@@ -50,6 +50,7 @@ struct seccomp_data {
 
 #define syscall_nr (offsetof(struct seccomp_data, nr))
 #define arch_nr (offsetof(struct seccomp_data, arch))
+#define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]))
 
 #if defined(__i386__)
 # define REG_SYSCALL	REG_EAX
@@ -73,6 +74,13 @@ struct seccomp_data {
 
 #define ALLOW_SYSCALL(name) \
 	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
+
+#define ALLOW_SYSCALL_CHECK_N(name, n_arg, a1) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 4), \
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, syscall_arg(n_arg)),		\
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, a1, 1, 0), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL), 	\
 	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
 
 #define KILL_PROCESS \

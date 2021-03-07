@@ -15,58 +15,100 @@
   min-width: 90vw;
 }
 
-#submitButton{
+.submitContainer{
   position: relative;
-  top: 0.2cm;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  min-width: 20vw;
-  min-height: 4vh;
+  min-width: 90vw;
+  min-height: 5vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
 }
 
-#newCellButton{
+#submitButton{
+  margin-top: auto;
   position: relative;
-  top: -0.4cm;
-  display: inline-block;
-  margin-left: 30vw;
-  min-width: 20vw;
+  padding: 8px 6px;
+}
+
+.newCellContainer{
+  position: relative;
+  min-width: 90vw;
   min-height: 4vh;
-  margin-top: 10px;
+  /* text-align: center; */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* margin-top: 1.5vh; */
+}
+
+.newCellContainer .btn-newCell{
+  position: relative;
+  min-height: 3vh;
+  /* margin-top: ; */
+  display: none;
+}
+
+.newCellContainer:hover .btn-newCell{
+  display: inline-block;
+  
+}
+
+.delCell{
+  max-width: 0;
+  max-height: 0;
 }
 
 #delCellButton{
   position: relative;
-  top: -0.4cm;
+  left: 92vw;
+  top: -10px;
   display: inline-block;
-  min-width: 20vw;
-  min-height: 4vh;
-  margin-top: 10px;
+}
+
+
+
+.copyContainer{
+  position: relative;
+  min-width: 90vw;
+  min-height: 2vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* margin-top: 2vh; */
 }
 
 #copyToClipButton{
+  
   position: relative;
-  top: -0.4cm;
-  min-width: 20vw;
-  min-height: 4vh;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  /* margin-top: 10px; */
+  padding: 8px 6px;
+}
+
+.outputContainer{
+  position: relative;
+  margin-top: 1vh;
+  min-width: 90vw;
+  min-height: 2vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 #output_text{
   display: block;
-  margin-left: auto;
-  margin-right: auto;
+  /* margin-left: auto;
+  margin-right: auto; */
   min-width: 90vw;
   
 }
 
 
 #Cell{
-  margin-bottom: 0.4cm;
-  margin-top: 0.4cm;
+  display: block;
+  /* margin-bottom: 1vh; */
+  /* margin-top: 1vh; */
+  /* margin-bottom: 0.4cm; */
+  /* margin-top: 0.4cm; */
 }
 
 #XMMVal-2{

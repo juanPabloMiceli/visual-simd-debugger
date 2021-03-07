@@ -41,7 +41,7 @@ function TextOutput(){
 			id="output_text" 
 			value={VisualizerData.ConsoleOutput}
 			onChange={updateOutput}
-			placeholder={"Console output goes here"}
+			placeholder={"Console output will be displayed here."}
 			/>
 		</div>
 	)	

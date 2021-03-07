@@ -2,3 +2,4 @@ frontend/node_modules/
 .vscode/
 frontend/.eslintcache
 frontend/yarn.lock
+/backend/microjail/debug

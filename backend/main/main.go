@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -24,6 +26,12 @@ import (
 const (
 	//MAXCPUTIME is the maximum time in seconds the process can be scheduled
 	MAXCPUTIME uint64 = 2
+
+	//CHARS is a string containing all possible characters in filename
+	CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-0123456789."
+
+	//FILENAMELEN is the created filename length
+	FILENAMELEN = 10
 )
 
 // FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
@@ -322,7 +330,7 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 			return killProcess(pid, waitErr.Error())
 		}
 		if !pidExists(pid) && cellIndex < len(cellsData.Data)-1 {
-			return killProcess(pid, "Something stopped the program.")
+			return killProcess(pid, "Something stopped the program.\n")
 		}
 
 	}
@@ -376,20 +384,20 @@ func deleteFile(filePath string) error {
 
 //deleteFiles removes the 3 files created "output.asm", "output.o" and "output"
 //So that next request is clean
-func deleteFiles(filesPath string, res *ResponseObj) {
+func deleteFiles(filesPath string, fileName string, res *ResponseObj) {
 
-	err1 := deleteFile(path.Join(filesPath, "output"))
-	err2 := deleteFile(path.Join(filesPath, "output.o"))
-	err3 := deleteFile(path.Join(filesPath, "output.asm"))
+	err1 := deleteFile(path.Join(filesPath, fileName))
+	err2 := deleteFile(path.Join(filesPath, fileName+".o"))
+	err3 := deleteFile(path.Join(filesPath, fileName+".asm"))
 
 	if err1 != nil {
-		res.ConsoleOut += "\n Could not remove exeecutable from server. Error: " + err1.Error()
+		res.ConsoleOut += "\nCould not remove exeecutable from server. Error: " + err1.Error()
 	}
 	if err2 != nil {
-		res.ConsoleOut += "\n Could not remove binary from server. Error: " + err2.Error()
+		res.ConsoleOut += "\nCould not remove binary from server. Error: " + err2.Error()
 	}
 	if err3 != nil {
-		res.ConsoleOut += "\n Could not remove text file from server. Error: " + err3.Error()
+		res.ConsoleOut += "\nCould not remove text file from server. Error: " + err3.Error()
 	}
 }
 
@@ -398,28 +406,23 @@ func fileExists(filePath string) bool {
 	return err == nil
 }
 
-func codeSave(w http.ResponseWriter, req *http.Request) {
+func getCellsData(req *http.Request) (cellshandler.CellsData, error) {
+	cellsData := cellshandler.NewCellsData()
 
-	_, filename, _, ok := runtime.Caller(0)
+	dec := json.NewDecoder(req.Body)
 
-	if !ok {
-		response(&w, ResponseObj{ConsoleOut: "Could't find server path"})
-		return
-	}
+	dec.DisallowUnknownFields()
 
-	filepath := path.Dir(filename)
-	//Deleting files just in case previous execution failed to do that
-	deleteFiles(filepath, &ResponseObj{})
-	enableCors(&w)
+	decodeErr := dec.Decode(&cellsData)
 
-	//Testing JSON Request
+	return cellsData, decodeErr
+}
 
+func printJSONInput(req *http.Request) {
 	var bodyBytes []byte
 	if req.Body != nil {
 		bodyBytes, _ = ioutil.ReadAll(req.Body)
 	}
-
-	fmt.Println(string(bodyBytes))
 
 	var jsonMap map[string]interface{}
 	err := json.Unmarshal(bodyBytes, &jsonMap)
@@ -433,58 +436,97 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(string(jsonData))
 
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+}
 
-	//End of Testing JSON Request
+func checkExecutables(paths ...string) (map[string]string, []string) {
+	resMap := make(map[string]string)
+	var missingPaths []string
 
-	cellsData := cellshandler.NewCellsData()
+	for _, path := range paths {
+		execPath, execErr := exec.LookPath(path)
+		if execErr != nil {
+			missingPaths = append(missingPaths, path)
+		} else {
+			resMap[path] = execPath
+		}
+	}
+	return resMap, missingPaths
 
-	dec := json.NewDecoder(req.Body)
+}
 
-	dec.DisallowUnknownFields()
+func randomString(n int) (string, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	safeString := base64.URLEncoding.EncodeToString(b)
+	if err != nil {
+		return "", err
+	}
+	return safeString, err
+}
 
-	decodeErr := dec.Decode(&cellsData)
+func codeSave(w http.ResponseWriter, req *http.Request) {
 
+	_, filename, _, ok := runtime.Caller(0)
+
+	if !ok {
+		response(&w, ResponseObj{ConsoleOut: "Could't find server path"})
+		return
+	}
+
+	filepath := path.Dir(filename)
+	//Deleting files just in case previous execution failed to do that
+	enableCors(&w)
+
+	printJSONInput(req)
+
+	cellsData, decodeErr := getCellsData(req)
 	if decodeErr != nil {
 		response(&w, ResponseObj{ConsoleOut: "Could't read data from the client properly."})
 		return
 	}
+	cellsData.HandleCellsData()
 
 	var fileText string
-	cellsData.HandleCellsData()
 	fileText = cellsData.CellsData2SourceCode()
 
-	fileErr := ioutil.WriteFile("output.asm", []byte(fileText), 0644)
+	execMap, missingPaths := checkExecutables("nasm", "minijail0", "ld", "microjail")
+
+	if len(missingPaths) > 0 {
+		responseObj := ResponseObj{ConsoleOut: "Could't find next executable paths:"}
+		for _, path := range missingPaths {
+			responseObj.ConsoleOut += "\n* " + path
+		}
+		response(&w, responseObj)
+		return
+	}
+
+	randomFile, randErr := randomString(FILENAMELEN)
+
+	if randErr != nil {
+		response(&w, ResponseObj{ConsoleOut: "Could't create file name properly."})
+		return
+	}
+
+	randomFile = "execDir/" + randomFile
+
+	fileErr := ioutil.WriteFile(randomFile+".asm", []byte(fileText), 0644)
 	if fileErr != nil {
 		response(&w, ResponseObj{ConsoleOut: "Could't create file properly."})
 		return
 	}
 
-	nasmPath, nasmPathErr := exec.LookPath("nasm")
-
-	if nasmPathErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't find nasm executable path"})
-		return
-	}
-
-	mjPath, mjPathError := exec.LookPath("minijail0")
-
-	if mjPathError != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't find minijail executable path"})
-		return
-	}
-
-	nasmCmd := exec.Command(mjPath, "-n", "-S", "../policies/nasm.policy", nasmPath, "-f", "elf64", "-g", "-F", "DWARF", "output.asm", "-o", "output.o")
+	nasmCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/nasm.policy", execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", randomFile+".asm", "-o", randomFile+".o")
 
 	var stderr bytes.Buffer
 	nasmCmd.Stderr = &stderr
 	nasmErr := nasmCmd.Run()
 
-	if nasmErr != nil || !fileExists(path.Join(filepath, "output.o")) {
+	if nasmErr != nil || !fileExists(path.Join(filepath, randomFile+".o")) {
 		if stderr.String() == "" {
 			stderr.WriteString("NASM execution failed")
 		}
 		res := ResponseObj{ConsoleOut: stderr.String()}
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
@@ -497,24 +539,17 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	// nasmErr = nasmCmd.Wait()
 
-	linkerPath, linkerPathErr := exec.LookPath("ld")
-
-	if linkerPathErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't find linker executable path"})
-		return
-	}
-
-	linkingCmd := exec.Command(mjPath, "-n", "-S", "../policies/ld.policy", linkerPath, "-o", "output", "output.o")
+	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-o", randomFile, randomFile+".o")
 
 	linkingCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Run()
 
-	if linkingErr != nil || !fileExists(path.Join(filepath, "output")) {
+	if linkingErr != nil || !fileExists(path.Join(filepath, randomFile)) {
 		if stderr.String() == "" {
 			stderr.WriteString("Linker execution failed")
 		}
 		res := ResponseObj{ConsoleOut: stderr.String()}
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
@@ -527,14 +562,9 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	// linkingCmd.Wait()
 
-	fullPath := path.Join(filepath, "output")
+	fullPath := path.Join(filepath, randomFile)
 
-	microjailPath, microErr := exec.LookPath("microjail")
-	if microErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't find microjail executable path"})
-		return
-	}
-	exeCmd := exec.Command(microjailPath, fullPath)
+	exeCmd := exec.Command(execMap["microjail"], fullPath)
 
 	exeCmd.Stderr = os.Stderr
 	exeCmd.Stdin = os.Stdin
@@ -546,7 +576,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if startErr != nil {
 		res := ResponseObj{ConsoleOut: startErr.Error()}
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
@@ -556,12 +586,11 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	limitCPUTime(microjailPID, MAXCPUTIME)
 	exeCmd.Wait()
 
-	// optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
+	optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
 
-	optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC|0x200000) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
 	if optErr != nil {
 		res := killProcess(microjailPID, optErr.Error())
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
@@ -570,7 +599,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	execErr := syscall.PtraceCont(microjailPID, 0)
 	if execErr != nil {
 		res := killProcess(microjailPID, execErr.Error())
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
@@ -579,23 +608,21 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	_, waitErr := syscall.Wait4(microjailPID, &ws, syscall.WALL, nil)
 	if waitErr != nil {
 		res := killProcess(microjailPID, waitErr.Error())
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
 
 	if !pidExists(microjailPID) {
 		res := ResponseObj{ConsoleOut: "Microjail error."}
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
 
-	//Re enable seccomp
-	optErr = syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x100000 = PTRACE_O_SUSPEND_SECCOMP
 	if optErr != nil {
 		res := ResponseObj{ConsoleOut: optErr.Error()}
-		deleteFiles(filepath, &res)
+		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 
@@ -604,7 +631,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	responseObj := cellsLoop(&cellsData, microjailPID)
 
 	runtime.UnlockOSThread()
-	deleteFiles(filepath, &responseObj)
+	deleteFiles(filepath, randomFile, &responseObj)
 	response(&w, responseObj)
 
 }
