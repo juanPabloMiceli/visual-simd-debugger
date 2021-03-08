@@ -32,6 +32,9 @@ const (
 
 	//FILENAMELEN is the created filename length
 	FILENAMELEN = 10
+
+	//MAXBYTES is the maximum bytes the asm file can use
+	MAXBYTES = 10240
 )
 
 // FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
@@ -247,6 +250,19 @@ func prLimit(pid int, limit uintptr, rlimit *syscall.Rlimit) error {
 		return err
 	}
 	return nil
+}
+
+// func applyUlimit(pid int) {
+// 	limitCPUTime(pid, MAXCPUTIME)
+// 	limitFileSize(pid, MAXBYTES)
+// }
+
+func limitFileSize(pid int, maxSize uint64) {
+	var rlimit syscall.Rlimit
+
+	rlimit.Cur = maxSize
+	rlimit.Max = maxSize
+	prLimit(pid, syscall.RLIMIT_FSIZE, &rlimit)
 }
 
 func limitCPUTime(pid int, maxTime uint64) {
@@ -466,6 +482,8 @@ func randomString(n int) (string, error) {
 
 func codeSave(w http.ResponseWriter, req *http.Request) {
 
+	limitFileSize(syscall.Getpid(), MAXBYTES)
+
 	_, filename, _, ok := runtime.Caller(0)
 
 	if !ok {
@@ -484,7 +502,10 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		response(&w, ResponseObj{ConsoleOut: "Could't read data from the client properly."})
 		return
 	}
-	cellsData.HandleCellsData()
+	if cellsData.HandleCellsData() {
+		response(&w, ResponseObj{ConsoleOut: "Please insert some code."})
+		return
+	}
 
 	var fileText string
 	fileText = cellsData.CellsData2SourceCode()
@@ -511,7 +532,20 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	fileErr := ioutil.WriteFile(randomFile+".asm", []byte(fileText), 0644)
 	if fileErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't create file properly."})
+		response(&w, ResponseObj{ConsoleOut: "Could't create file properly. Maybe the file is greater than 10Kb."})
+		return
+	}
+
+	fileInfo, newFileErr := os.Stat(randomFile + ".asm")
+	if newFileErr != nil {
+		panic(newFileErr)
+	}
+	fileSize := fileInfo.Size()
+
+	if fileSize > MAXBYTES {
+		res := ResponseObj{ConsoleOut: "Text file must not be greater than 10Kb."}
+		deleteFiles(filepath, randomFile, &res)
+		response(&w, res)
 		return
 	}
 
@@ -525,7 +559,8 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		if stderr.String() == "" {
 			stderr.WriteString("NASM execution failed")
 		}
-		res := ResponseObj{ConsoleOut: stderr.String()}
+		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
+		res := ResponseObj{ConsoleOut: errorString}
 		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
@@ -539,7 +574,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	// nasmErr = nasmCmd.Wait()
 
-	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-o", randomFile, randomFile+".o")
+	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-no-stdlib", "-static", "-o", randomFile, randomFile+".o")
 
 	linkingCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Run()
@@ -548,7 +583,8 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		if stderr.String() == "" {
 			stderr.WriteString("Linker execution failed")
 		}
-		res := ResponseObj{ConsoleOut: stderr.String()}
+		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
+		res := ResponseObj{ConsoleOut: errorString}
 		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
@@ -582,8 +618,9 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	}
 
 	microjailPID := exeCmd.Process.Pid
-
+	fmt.Println(microjailPID)
 	limitCPUTime(microjailPID, MAXCPUTIME)
+
 	exeCmd.Wait()
 
 	optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP

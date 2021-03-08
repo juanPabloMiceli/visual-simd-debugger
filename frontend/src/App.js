@@ -5,7 +5,6 @@ import SimdVisualizer from './components/SimdVisualizer';
 import Provider from './components/Context'
 
 
-
 export default function App(){
   return(
     <div id="App">

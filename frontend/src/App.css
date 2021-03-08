@@ -54,6 +54,12 @@
   
 }
 
+.newCellContainer .btn-lastNewCell{
+  position: relative;
+  min-height: 3vh;
+  display: inline-block;
+}
+
 .delCell{
   max-width: 0;
   max-height: 0;

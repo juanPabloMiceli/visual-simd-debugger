@@ -17,6 +17,9 @@ RUN apt-get install nasm
 RUN apt-get install -y libcap-dev 
 RUN apt-get install -y git
 
+#Need this in order to use microjail
+RUN apt-get install -y libseccomp-dev
+
 #Downloading minijail
 
 RUN git clone https://android.googlesource.com/platform/external/minijail ./minijail
@@ -29,11 +32,13 @@ RUN cp libminijail.so /lib64/
 RUN cp libminijailpreload.so /lib64/
 RUN cp minijail0 /usr/bin/
 
-
 WORKDIR /go/src
 #Copy all dependencies
 COPY ./gitlab.com/juampi_miceli/visual-simd-debugger/backend ./gitlab.com/juampi_miceli/visual-simd-debugger/backend
 
+#Installing microjail
+WORKDIR /go/src/gitlab.com/juampi_miceli/visual-simd-debugger/backend/microjail
+RUN make docker-install
 
 
 WORKDIR /go/src/gitlab.com/juampi_miceli/visual-simd-debugger/backend/main

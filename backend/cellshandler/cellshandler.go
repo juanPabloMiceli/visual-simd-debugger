@@ -74,17 +74,29 @@ func (obj *CellsData) CellsData2SourceCode() string {
 }
 
 //HandleCellsData edit cells code content such that the cells to source code convertion is direct
-func (obj *CellsData) HandleCellsData() {
+func (obj *CellsData) HandleCellsData() bool {
 	//TODO: Check code exists and is not only data
 	obj.toLowerCase()
 	obj.fixCommentInstructions()
 	obj.handleAllXmmRequests()
 	obj.checkIfDataCellExists()
+	if obj.onlyData() {
+		return true
+	}
 	obj.addDataSection()
 	obj.addTextSection()
 	obj.removeUserBreakpoints()
 	obj.addCellsBreakpoints()
 	obj.addExitSyscall()
+
+	return false
+}
+
+func (obj *CellsData) onlyData() bool {
+	if obj.HasDataCell && len(obj.Data) == 1 {
+		return true
+	}
+	return false
 }
 
 func (obj *CellsData) toLowerCase() {

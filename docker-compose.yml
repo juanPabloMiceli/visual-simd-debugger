@@ -1,4 +1,4 @@
-version: '3'
+version: '3.4'
 services:
   backend:
     build:
@@ -7,6 +7,8 @@ services:
     image: juampi1998/visual-simd-backend
     ports:
       - 8080:8080
+    security_opt:
+      - seccomp:unconfined
     
 
   frontend:
@@ -16,3 +18,4 @@ services:
     image: juampi1998/visual-simd-frontend
     ports:
       - 3000:3000
+  

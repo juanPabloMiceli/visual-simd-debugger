@@ -30,7 +30,7 @@ function SimdVisualizer(){
                 <button className="btn btn-DelCell" id="copyToClipButton" onClick={copyToClipBoard}>Copy code to clipboard</button>
             </div>
             <TextOutput/>
-            <FileInput/>
+            {/* <FileInput/> */}
         </div>
     );
 }

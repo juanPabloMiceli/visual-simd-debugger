@@ -1,5 +1,4 @@
 import axios from 'axios'
-import autosize from 'autosize'
 import React, {useContext, useState} from 'react'
 
 const ContextData  = React.createContext()
@@ -10,7 +9,8 @@ const ContextNewCell = React.createContext()
 const ContextNewCellDown = React.createContext()
 const ContextDeleteCell = React.createContext()
 const ContextCopyToClipBoard = React.createContext()
-const local_host = "http://localhost:8080"
+// const local_host = "http://localhost:8080"
+
 
 export function useContextData(){
     return useContext(ContextData)
@@ -72,9 +72,12 @@ function Provider({children}){
     }
 
     function submitCode(e){
+        let url = new URL(window.location.href)
+        url.port = "8080"
+
         e.preventDefault()
         setCellsData(cleanOutput(CellsData))
-        axios.post(local_host + "/codeSave", JSON.stringify({
+        axios.post(url + "codeSave", JSON.stringify({
             CellsData: CellsData
         }))
         .then(response =>{

@@ -10,64 +10,142 @@ export default function Cell(props){
     const VisualizerData = useContextData()
     const newCell = useContextNewCell()
     const deleteCell = useContextDeleteCell()
-    
-    if(VisualizerData.CellsData[props.id].output.length > 0){
-        if(props.id === 0){
+
+
+    function isFirstCell(id){
+        if(id ===  0){
             return(
-                <div id={'Cell'}>
-                    <div className="newCellContainer">
-                        <span><button className="btn-newCell" onClick={e => newCell(e, props.id)}>+ Code</button></span>
-                    </div>
-                    <div className="delCell">
-                        <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
-                    </div>
-                    {/* <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button> */}
-                    <TextInput id={props.id}/>
-                    <XMMS data={VisualizerData.CellsData[props.id].output}/>
-                    <div className="newCellContainer">
-                            <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
-                    </div>                
-                </div>
-            ) 
-        }
-        return(
-            <div id={'Cell'}>
-                <div className="delCell">
-                    <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
-                </div>
-                <TextInput id={props.id}/>
-                <XMMS data={VisualizerData.CellsData[props.id].output}/>
-                <div className="newCellContainer">
-                    <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
-                </div>                
-            </div>
-        ) 
-    }
-    if(props.id === 0){
-        return(
-            <div id={'Cell'}>
                 <div className="newCellContainer">
                     <span><button className="btn-newCell" onClick={e => newCell(e, props.id)}>+ Code</button></span>
                 </div>
-                <div className="delCell">
-                    <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
-                </div>
-                <TextInput id={props.id}/>
+            )
+        }else{
+            <div></div>
+        }
+    }
+
+    function isLastCell(id, totalCells) {
+        if(id === totalCells-1){
+            return(
+                <div className="newCellContainer">
+                    <span><button className="btn-lastNewCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+                </div>   
+            )
+        }else{
+            return(
                 <div className="newCellContainer">
                     <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
-                </div>                
-            </div>
-        ) 
+                </div> 
+            )
+            
+        }
     }
+
+    function hasXMMData(dataLength) {
+        if(dataLength > 0){
+            return(
+                <XMMS data={VisualizerData.CellsData[props.id].output}/>
+            )
+        }else{
+            <div></div>
+        }
+    }
+
     return(
         <div id={'Cell'}>
+            {isFirstCell(props.id)}
             <div className="delCell">
                 <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
             </div>
             <TextInput id={props.id}/>
-            <div className="newCellContainer">
-                    <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
-            </div>                
+            {hasXMMData(VisualizerData.CellsData[props.id].output.length)}
+            {isLastCell(props.id, VisualizerData.TotalCells)}           
         </div>
-    ) 
+    )
+    
+    // if(VisualizerData.CellsData[props.id].output.length > 0){
+    //     if(props.id === VisualizerData.TotalCells-1){
+    //         return(
+    //             <div id={'Cell'}>
+    //                 <div className="delCell">
+    //                     <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+    //                 </div>
+    //                 <TextInput id={props.id}/>
+    //                 <XMMS data={VisualizerData.CellsData[props.id].output}/>
+    //                 <div className="newCellContainer">
+    //                     <span><button className="btn-lastNewCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+    //                 </div>                
+    //             </div>
+    //         ) 
+    //     }
+    //     if(props.id === 0){
+    //         return(
+    //             <div id={'Cell'}>
+    //                 <div className="newCellContainer">
+    //                     <span><button className="btn-newCell" onClick={e => newCell(e, props.id)}>+ Code</button></span>
+    //                 </div>
+    //                 <div className="delCell">
+    //                     <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+    //                 </div>
+    //                 <TextInput id={props.id}/>
+    //                 <XMMS data={VisualizerData.CellsData[props.id].output}/>
+    //                 <div className="newCellContainer">
+    //                         <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+    //                 </div>                
+    //             </div>
+    //         ) 
+    //     }
+    //     return(
+    //         <div id={'Cell'}>
+    //             <div className="delCell">
+    //                 <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+    //             </div>
+    //             <TextInput id={props.id}/>
+    //             <XMMS data={VisualizerData.CellsData[props.id].output}/>
+    //             <div className="newCellContainer">
+    //                 <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+    //             </div>                
+    //         </div>
+    //     ) 
+    // }
+    // if(props.id === 0){
+    //     return(
+    //         <div id={'Cell'}>
+    //             <div className="newCellContainer">
+    //                 <span><button className="btn-newCell" onClick={e => newCell(e, props.id)}>+ Code</button></span>
+    //             </div>
+    //             <div className="delCell">
+    //                 <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+    //             </div>
+    //             <TextInput id={props.id}/>
+    //             <div className="newCellContainer">
+    //                 <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+    //             </div>                
+    //         </div>
+    //     ) 
+    // }
+    // if(props.id === VisualizerData.TotalCells-1){
+    //     return(
+    //         <div id={'Cell'}>
+    //             <div className="delCell">
+    //                 <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+    //             </div>
+    //             <TextInput id={props.id}/>
+    //             <div className="newCellContainer">
+    //                 <span><button className="btn-lastNewCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+    //             </div>                
+    //         </div>
+    //     ) 
+    // }
+    // return(
+    //     <div id={'Cell'}>
+    //         <div className="delCell">
+    //             <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+    //         </div>
+    //         <TextInput id={props.id}/>
+    //         <div className="newCellContainer">
+    //                 <span><button className="btn-newCell" onClick={e => newCell(e, props.id+1)}>+ Code</button></span>
+    //         </div>                
+    //     </div>
+    // ) 
 }

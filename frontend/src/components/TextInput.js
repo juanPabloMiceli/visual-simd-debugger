@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-// import autosize from 'autosize'
-import {useContextData, useContextUpdateData, useState} from './Context'
+import {useContextData, useContextUpdateData} from './Context'
 
 export default function TextInput(props){
 
@@ -9,6 +8,7 @@ export default function TextInput(props){
 
 	const VisualizerData = useContextData()
 	const updateData = useContextUpdateData()
+	let currentCode = VisualizerData.CellsData[props.id].code
 
 
 
@@ -18,7 +18,7 @@ export default function TextInput(props){
 
 	useEffect(() => {
 		setInputHeight(textArea.current, '38px')
-	}, [VisualizerData.CellsData[props.id].code]);
+	}, [currentCode]);
 
 	
 	function setInputHeight(element, defaultHeight){

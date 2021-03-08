@@ -1,5 +1,8 @@
 all: install output hello
 
+docker-install: microjail
+	cp microjail /usr/bin/
+
 install: microjail
 	sudo cp microjail /usr/bin/
 
