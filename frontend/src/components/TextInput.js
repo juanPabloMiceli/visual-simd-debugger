@@ -50,7 +50,8 @@ export default function TextInput(props){
 			style={style}
 			ref={textArea}
 			rows={1}
-			id="code"
+			id={props.id}
+			className={"code"}
 			onChange={updateCode}
 			value={VisualizerData.CellsData[props.id].code}
 			placeholder={"Code goes here"}

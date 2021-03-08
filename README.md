@@ -72,11 +72,14 @@ Una forma de "comentar" los `print` es escribiendo un caracter cualquiera en el 
 
 
 
-### Copiar código
+### Copiar código:
 
 El botón "copy to clipboard" hace exactamente lo que pensás. Copia todo el código que haya en las celdas al porta papeles para que lo puedas pegar cómodamente en el assembler. Un detalle de esto es que si hay alguna celda que no querés copiar, podés agregar un:
 `;nope` en esa celda y esta no va a aparecer en la copia.
 
 
+### Shortcuts de teclado:
 
-
+* `Ctrl+Enter`: Ejecutar código
+* `Ctrl+ArrowDown`: Inserta una celda debajo de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al final.
+* `Ctrl+ArrowUp`: Inserta una celda arriba de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al principio.

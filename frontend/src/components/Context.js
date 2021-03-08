@@ -1,5 +1,7 @@
 import axios from 'axios'
-import React, {useContext, useState} from 'react'
+import React, {useContext, useEffect, useState, useRef} from 'react'
+import { HotKeys } from 'react-hotkeys'
+import {useKeyboardShortcut} from './useKeyboardShortcut'
 
 const ContextData  = React.createContext()
 const ContextUpdateData = React.createContext()
@@ -10,6 +12,7 @@ const ContextNewCellDown = React.createContext()
 const ContextDeleteCell = React.createContext()
 const ContextCopyToClipBoard = React.createContext()
 // const local_host = "http://localhost:8080"
+
 
 
 export function useContextData(){
@@ -57,11 +60,23 @@ function cleanOutput(cellsData){
     return cellsData
 }
 
+
+
 function Provider({children}){
     
-    const [CellsData, setCellsData] = useState([initCell(0)]);
-    const [TotalCells, setTotalCells] = useState(1);
+    const [CellsData, setCellsData] = useState(initExample());
+    const [TotalCells, setTotalCells] = useState(3);
     const [ConsoleOutput, setConsoleOutput] = useState("");
+
+    // useKey(['Ctrl', 'Enter'], () => {
+    //     alert("apretaste")
+    // })
+    // useKeyboardShortcut(["Control", "Enter"], () => {
+    //     submitCode()
+    // })
+    // useKeyboardShortcut(["Control", "ArrowDown"], (e) =>{
+    //     console.log(e)
+    // })
 
     function initCell(_id){
         return {
@@ -71,11 +86,27 @@ function Provider({children}){
         }
     }
 
-    function submitCode(e){
+    function initExample() {
+
+        let cellsData = [initCell(0), initCell(1), initCell(2)]
+    
+        cellsData[0].code = ";data\n"
+        cellsData[0].code += "words: dw 1, 2, 3, 4, 5, 6, 7, 8"
+    
+        cellsData[1].code = "movdqu xmm0,[words]\n"
+        cellsData[1].code += ";p/u xmm0.v8_int16\n"
+        cellsData[1].code += ";p/x xmm0.v8_int16"
+    
+        cellsData[2].code = "psllq xmm0, 4"
+    
+        return cellsData
+        
+    }
+
+    function submitCode(){
         let url = new URL(window.location.href)
         url.port = "8080"
 
-        e.preventDefault()
         setCellsData(cleanOutput(CellsData))
         axios.post(url + "codeSave", JSON.stringify({
             CellsData: CellsData
@@ -88,6 +119,7 @@ function Provider({children}){
             console.log(error)
         })
     }
+
 
 
     function fixIndexing(cells){
@@ -109,6 +141,7 @@ function Provider({children}){
         setCellsData(copy)
 
         setTotalCells(TotalCells + 1)
+        document.getElementById(buttonNumber.toString()).focus()
     }
 
 
@@ -188,6 +221,34 @@ function Provider({children}){
         ConsoleOutput: ConsoleOutput
     }
 
+    document.onkeydown = checkKey
+
+    function checkKey(event){
+        console.log(event.target.tagName)
+        if(event.key === "Enter" && event.ctrlKey){
+            submitCode(event)
+        }
+        if(event.target.tagName == "TEXTAREA"){
+            if(event.key === "ArrowDown" && event.ctrlKey){
+                newCell(event, parseInt(event.target.id)+1)
+            }
+            if(event.key === "ArrowUp" && event.ctrlKey){
+                newCell(event, parseInt(event.target.id))
+            }
+        }
+        else{
+            if(event.key === "ArrowDown" && event.ctrlKey){
+                newCell(event, VisualizerData.TotalCells)
+            }
+            if(event.key === "ArrowUp" && event.ctrlKey){
+                newCell(event, 0)
+            }
+        }
+    }
+    // window.addEventListener("onkeypress", (event) => {
+        
+    // })
+
     return(
         <ContextData.Provider value={VisualizerData}>
             <ContextSubmit.Provider value={submitCode}>
@@ -206,5 +267,25 @@ function Provider({children}){
         </ContextData.Provider>
     )
 }
+
+// function useKey(keys, callback){
+//     const callbackRef = useRef(callback)
+
+//     useEffect(() => {
+//         callbackRef.current = callback
+//     })
+
+//     useEffect(() => {
+//         function handle(event){
+//             if(event.code === key){
+//                 callbackRef.current(event)
+//             }
+//         }
+//         document.addEventListener("keypress", handle)
+//         return() => document.removeEventListener("keypress", handle)
+//     }, [key])
+
+    
+// }
 
 export default Provider;
