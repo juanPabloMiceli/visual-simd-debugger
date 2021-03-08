@@ -241,7 +241,9 @@ function Provider({children}){
     document.onkeydown = checkKey
 
     function checkKey(event){
-        console.log(event.target.tagName)
+        if(event.repeat){
+            return  
+        } 
         if(event.key === "Enter" && event.ctrlKey){
             submitCode(event)
         }
