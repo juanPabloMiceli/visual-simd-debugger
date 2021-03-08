@@ -83,3 +83,4 @@ El botón "copy to clipboard" hace exactamente lo que pensás. Copia todo el có
 * `Ctrl+Enter`: Ejecutar código
 * `Ctrl+ArrowDown`: Inserta una celda debajo de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al final.
 * `Ctrl+ArrowUp`: Inserta una celda arriba de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al principio.
+* `Ctrl+Alt+D`: Elimina la celda actual. **Esta acción no se puede deshacer.**

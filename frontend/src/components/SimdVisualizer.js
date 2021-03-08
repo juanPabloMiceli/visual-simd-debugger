@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Cell from './Cell'
 import { useContextData, useContextSubmit, useContextCopyToClipBoard } from "./Context" 
 import TextOutput from './TextOutput';
-import FileInput from './FileInput'
 
 
 

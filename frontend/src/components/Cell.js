@@ -55,7 +55,7 @@ export default function Cell(props){
         <div id={'Cell'}>
             {isFirstCell(props.cellNumber)}
             <div className="delCell">
-                <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.id)}><FontAwesomeIcon icon="trash-alt"/></button>
+                <button className="btn btn-DelCell" id="delCellButton" onClick={e => deleteCell(e, props.cellNumber)}><FontAwesomeIcon icon="trash-alt"/></button>
             </div>
             <TextInput id={props.cellNumber} />
             {hasXMMData(VisualizerData.CellsData[props.cellNumber].output.length)}

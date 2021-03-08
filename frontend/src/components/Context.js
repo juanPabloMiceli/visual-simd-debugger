@@ -1,7 +1,5 @@
 import axios from 'axios'
-import React, {useContext, useEffect, useState, useRef} from 'react'
-import { HotKeys } from 'react-hotkeys'
-import {useKeyboardShortcut} from './useKeyboardShortcut'
+import React, {useContext, useState} from 'react'
 
 const ContextData  = React.createContext()
 const ContextUpdateData = React.createContext()
@@ -65,18 +63,8 @@ function cleanOutput(cellsData){
 function Provider({children}){
     
     const [CellsData, setCellsData] = useState(initExample());
-    const [TotalCells, setTotalCells] = useState(3);
+    const [TotalCells, setTotalCells] = useState(10);
     const [ConsoleOutput, setConsoleOutput] = useState("");
-
-    // useKey(['Ctrl', 'Enter'], () => {
-    //     alert("apretaste")
-    // })
-    // useKeyboardShortcut(["Control", "Enter"], () => {
-    //     submitCode()
-    // })
-    // useKeyboardShortcut(["Control", "ArrowDown"], (e) =>{
-    //     console.log(e)
-    // })
 
     function initCell(_id){
         return {
@@ -88,17 +76,45 @@ function Provider({children}){
 
     function initExample() {
 
-        let cellsData = [initCell(0), initCell(1), initCell(2)]
+        let cellsData = []
+
+        for(let i = 0; i < 10; i++){
+            cellsData.push(initCell(i))
+        }
     
         cellsData[0].code = ";data\n"
-        cellsData[0].code += "words: dw 1, 2, 3, 4, 5, 6, 7, 8"
+        cellsData[0].code += "pixeles: db 173, 68, 144, 255, 16, 54, 231, 255, 29, 178, 50, 255, 79, 211, 203, 255\n"
+        cellsData[0].code += "mascara: db 0, 0, 0, 2, 0, 0, 0, 2, 1, 1, 1, 2, 1, 1, 1, 2"
     
-        cellsData[1].code = "movdqu xmm0,[words]\n"
-        cellsData[1].code += ";p/u xmm0.v8_int16\n"
-        cellsData[1].code += ";p/x xmm0.v8_int16"
+        cellsData[1].code = "movdqu xmm0, [mascara]\n"
+        cellsData[1].code += "movdqu xmm1, [pixeles]\n"
+        cellsData[1].code += ";p xmm0.v16_int8\n"
+        cellsData[1].code += ";p/u xmm1.v16_int8"
     
-        cellsData[2].code = "psllq xmm0, 4"
+        cellsData[2].code = "pmovzxbw xmm1, xmm1\n"
+        cellsData[2].code += ";p xmm1.v8_int16"
+
+        cellsData[3].code = "pshufhw xmm1, xmm1, 0b01100100\n"
+        cellsData[3].code += "pshuflw xmm1, xmm1, 0b01100100"
     
+        cellsData[4].code = "phaddw xmm1, xmm1"
+
+        cellsData[5].code = "phaddw xmm1, xmm1"
+
+        cellsData[6].code = "psrlw xmm1, 3"
+
+        cellsData[7].code = "packuswb xmm1, xmm1\n"
+        cellsData[7].code += ";p xmm1.v16_int8"
+
+        cellsData[8].code = "xor rax, rax\n"
+        cellsData[8].code += "dec rax\n"
+        cellsData[8].code += "pinsrb xmm1, al, 2"
+
+        cellsData[9].code = "pshufb xmm1, xmm0"
+
+        
+
+
         return cellsData
         
     }
@@ -116,7 +132,7 @@ function Provider({children}){
             updateXMMData(response.data.CellRegs) 
         }) 
         .catch(error => {
-            console.log(error)
+            setConsoleOutput(error) 
         })
     }
 
@@ -146,6 +162,7 @@ function Provider({children}){
 
 
     function deleteCell(e, buttonNumber){
+        console.log(buttonNumber)
         e.preventDefault()
         if(TotalCells > 1){
             let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
@@ -228,12 +245,15 @@ function Provider({children}){
         if(event.key === "Enter" && event.ctrlKey){
             submitCode(event)
         }
-        if(event.target.tagName == "TEXTAREA"){
+        if(event.target.tagName === "TEXTAREA"){
             if(event.key === "ArrowDown" && event.ctrlKey){
                 newCell(event, parseInt(event.target.id)+1)
             }
             if(event.key === "ArrowUp" && event.ctrlKey){
                 newCell(event, parseInt(event.target.id))
+            }
+            if(event.key.toLowerCase() === "d" && event.ctrlKey && event.altKey){
+                deleteCell(event, parseInt(event.target.id))
             }
         }
         else{
@@ -268,24 +288,6 @@ function Provider({children}){
     )
 }
 
-// function useKey(keys, callback){
-//     const callbackRef = useRef(callback)
-
-//     useEffect(() => {
-//         callbackRef.current = callback
-//     })
-
-//     useEffect(() => {
-//         function handle(event){
-//             if(event.code === key){
-//                 callbackRef.current(event)
-//             }
-//         }
-//         document.addEventListener("keypress", handle)
-//         return() => document.removeEventListener("keypress", handle)
-//     }, [key])
-
-    
-// }
-
 export default Provider;
+
+
