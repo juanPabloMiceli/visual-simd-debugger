@@ -13,11 +13,14 @@ export default function Cell(props){
 
 
     function isFirstCell(id){
-        if(id ===  0){
+        if(id ===  1){
             return(
+            <div className="section-new-cell-container">
                 <div className="newCellContainer">
                     <span><button className="btn-newCell" onClick={e => newCell(e, props.cellNumber)}>+ Code</button></span>
                 </div>
+                <p className={"section-text"}><span id={"Section"}>Section</span> .text</p>
+            </div>
             )
         }else{
             <div></div>
@@ -27,15 +30,17 @@ export default function Cell(props){
     function isLastCell(id, totalCells) {
         if(id === totalCells-1){
             return(
-                <div className="newCellContainer">
-                    <span><button className="btn-lastNewCell" onClick={e => newCell(e, props.cellNumber+1)}>+ Code</button></span>
-                </div>   
+                <div>
+                    <div className="section-last-new-cell-container">
+                        <span><button className="newCellContainer" onClick={e => newCell(e, props.cellNumber+1)}>+ Code</button></span>
+                    </div>   
+                </div>
             )
         }else{
             return(
-                <div className="newCellContainer">
-                    <span><button className="btn-newCell" onClick={e => newCell(e, props.cellNumber+1)}>+ Code</button></span>
-                </div> 
+                <div className="section-new-cell-container">
+                        <span><button className="newCellContainer" onClick={e => newCell(e, props.cellNumber+1)}>+ Code</button></span>
+                </div>
             )
             
         }

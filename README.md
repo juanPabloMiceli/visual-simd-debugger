@@ -1,6 +1,6 @@
 # Visual SIMD Debugger
 
-## Introduccion:
+## Introducción:
 
 Este es un entorno de desarrollo especialmente pensado para trabajar con instrucciones SIMD.
 
@@ -10,13 +10,21 @@ El mismo cuenta con un formato similar al de jupyter notebook, separándose en c
 
 ### Sección de datos:
 
-Para agregar una sección de datos a nuestro código debemos iniciar la primer celda con: `;data`. Luego de eso podemos definir los datos exactamente como lo haríamos en assembler.
+La primer celda siempre corresponde a la celda de datos y está señalizada por la etiqueta `section .data`, los datos se definen exactamente como lo haríamos en assembler.
 
 Es muy importante notar que solo esta celda puede ser utilizada como celda de datos, y además, esta debe ser la única función de la misma. Es decir, no se puede agregar código en la misma.
 
+Esta celda no se puede eliminar.
+
 ### Sección de texto:
 
-Para esta sección alcanza con empezar a escribir código. La sección de texto empezará en la primer celda si no existe sección de datos, y en la segunda en caso contrario.
+El inicio de esta sección está marcado por la etiqueta `section .text`, es decir que todo el texto que esté en las celdas debajo de esta etiqueta será considerado código.
+
+No se permite eliminar todas las celdas de texto, por lo cual siempre habrá como mínimo una celda en la sección de texto.
+
+### Syscalls:
+
+Este entorno no acepta ninguna syscall. Si tratas de ejecutar cualquiera de estas el programa va a terminar.
 
 ### Agregar/Borrar celdas:
 
@@ -78,9 +86,15 @@ El botón "copy to clipboard" hace exactamente lo que pensás. Copia todo el có
 `;nope` en esa celda y esta no va a aparecer en la copia.
 
 
+### Limpiar código:
+
+Como limpiar el código de todas las celdas a la vez es medio incómodo, se puede apretar el botón `Clean Code` para realizar esta acción. **La misma no se puede deshacer**, por lo cual se debe confirmar el uso de este botón mediante un pop-up.
+
+
+
 ### Shortcuts de teclado:
 
-* `Ctrl+Enter`: Ejecutar código
+* `Ctrl+Enter`: Ejecutar código.
 * `Ctrl+ArrowDown`: Inserta una celda debajo de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al final.
 * `Ctrl+ArrowUp`: Inserta una celda arriba de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al principio.
 * `Ctrl+Alt+D`: Elimina la celda actual. **Esta acción no se puede deshacer.**

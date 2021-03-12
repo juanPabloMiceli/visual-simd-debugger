@@ -1,5 +1,6 @@
 #App {
-  background-color:#1a1a20; 
+
+  background-color:#1a1a20;
   position: absolute;
   top: 0px;
   left: 0px;
@@ -7,8 +8,8 @@
   min-width: 100vw;
 }
 
- .code{ 
-  background-color:#e0e0e0; 
+ .code{
+  background-color:#e0e0e0;
   display: block;
   margin-left: auto;
   margin-right: auto;
@@ -17,59 +18,54 @@
 
 .submitContainer{
   position: relative;
+  margin-left: 5vw;
+  margin-right: 5vw;
   min-width: 90vw;
   min-height: 5vh;
-  display: flex;
+  /* display: flex;
   justify-content: center;
-  align-items: center;
-  
+  align-items: center; */
+
 }
 
-#submitButton{
-  margin-top: auto;
-  position: relative;
+.btn-submit{
+  bottom: 0;
+  position: absolute;
   padding: 8px 6px;
+  left: 0;
 }
 
-.newCellContainer{
-  position: relative;
-  min-width: 90vw;
-  min-height: 4vh;
-  /* text-align: center; */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  /* margin-top: 1.5vh; */
+.btn-clean-code{
+  bottom: 0;
+  position: absolute;
+  padding: 8px 6px;
+  right: 0;
+
 }
 
-.newCellContainer .btn-newCell{
-  position: relative;
-  min-height: 3vh;
-  /* margin-top: ; */
-  display: none;
-}
+.btn-git{
+  font-size: larger;
+  bottom: 0;
+  position: absolute;
+  padding: 6px 10px;
+  left: 50%;
+  transform: translateX(-50%);
 
-.newCellContainer:hover .btn-newCell{
-  display: inline-block;
-  
-}
-
-.newCellContainer .btn-lastNewCell{
-  position: relative;
-  min-height: 3vh;
-  display: inline-block;
 }
 
 .delCell{
-  max-width: 0;
-  max-height: 0;
+  margin-left: auto;
+  margin-right: auto;
+  min-width: 90vw;
+  max-width: 90vw;
+
 }
 
 #delCellButton{
-  position: relative;
-  left: 92vw;
-  top: -10px;
-  display: inline-block;
+  position: absolute;
+  padding: 6px 8px;
+  margin-left: 90vw;
+  transform: translate(-100%, -50%);
 }
 
 
@@ -85,7 +81,7 @@
 }
 
 #copyToClipButton{
-  
+
   position: relative;
   padding: 8px 6px;
 }
@@ -105,16 +101,13 @@
   /* margin-left: auto;
   margin-right: auto; */
   min-width: 90vw;
-  
+
 }
 
 
 #Cell{
+  position: relative;
   display: block;
-  /* margin-bottom: 1vh; */
-  /* margin-top: 1vh; */
-  /* margin-bottom: 0.4cm; */
-  /* margin-top: 0.4cm; */
 }
 
 #XMMVal-2{
@@ -176,4 +169,68 @@
   min-width: 5vw;
   min-height: 30px;
   border: 1px solid white;
+}
+
+#Section{
+  color: rgb(102, 215, 237);
+}
+
+#section-text{
+  position: relative;
+  color: rgb(166, 226, 44);
+  margin-left: 5vw;
+  margin-bottom: auto;
+
+  display: inline-block;
+}
+
+.section-new-cell-container{
+  position: relative;
+  margin-left: 5vw;
+  margin-right: 5vw;
+  min-width: 90vw;
+  min-height: 4vh;
+}
+
+.section-new-cell-container .section-text{
+  position: absolute;
+  bottom: 0;
+  color: rgb(166, 226, 44);
+
+}
+
+
+.section-new-cell-container .newCellContainer{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+.section-new-cell-container:hover .newCellContainer{
+  display: inline-block;
+}
+
+
+.section-text{
+  margin: 0;
+}
+
+
+.section-last-new-cell-container{
+  position: relative;
+  margin-left: 5vw;
+  margin-right: 5vw;
+  min-width: 90vw;
+  min-height: 4vh;
+}
+
+
+
+.section-last-new-cell-container .newCellContainer{
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }

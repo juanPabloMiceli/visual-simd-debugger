@@ -291,10 +291,9 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 
 	cellIndex := 0
 
-	if cellsData.HasDataCell {
-		res.CellRegs = append(res.CellRegs, CellRegisters{})
-		cellIndex++
-	}
+	//Passing over data cell
+	res.CellRegs = append(res.CellRegs, CellRegisters{})
+	cellIndex++
 
 	oldXmmHandler, getErr := getXMMRegs(pid)
 	if getErr != nil {

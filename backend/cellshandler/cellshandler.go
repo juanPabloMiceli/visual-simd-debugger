@@ -25,7 +25,6 @@ type CellData struct {
 //CellsData ...
 type CellsData struct {
 	Data                  []CellData `json:"CellsData"`
-	HasDataCell           bool
 	Requests              []XmmRequests
 	DefaultDataFormat     []string
 	DefaultPrintingFormat []string
@@ -55,7 +54,6 @@ func NewCellsData() CellsData {
 
 	return CellsData{
 		Data:                  make([]CellData, 0),
-		HasDataCell:           false,
 		Requests:              make([]XmmRequests, 0),
 		DefaultDataFormat:     defaultDataFormat,
 		DefaultPrintingFormat: defaultPrintingFormat,
@@ -75,11 +73,8 @@ func (obj *CellsData) CellsData2SourceCode() string {
 
 //HandleCellsData edit cells code content such that the cells to source code convertion is direct
 func (obj *CellsData) HandleCellsData() bool {
-	//TODO: Check code exists and is not only data
 	obj.toLowerCase()
-	obj.fixCommentInstructions()
 	obj.handleAllXmmRequests()
-	obj.checkIfDataCellExists()
 	if obj.onlyData() {
 		return true
 	}
@@ -93,22 +88,12 @@ func (obj *CellsData) HandleCellsData() bool {
 }
 
 func (obj *CellsData) onlyData() bool {
-	if obj.HasDataCell && len(obj.Data) == 1 {
-		return true
-	}
-	return false
+	return len(obj.Data) == 1
 }
 
 func (obj *CellsData) toLowerCase() {
 	for index := range obj.Data {
 		obj.Data[index].Code = strings.ToLower(obj.Data[index].Code)
-	}
-}
-
-func (obj *CellsData) fixCommentInstructions() {
-	r := regexp.MustCompile("(( |\\t)+)?;(( |\\t)+)?")
-	for index := range obj.Data {
-		obj.Data[index].Code = r.ReplaceAllString(obj.Data[index].Code, ";")
 	}
 }
 
@@ -134,7 +119,7 @@ func XmmID2Number(xmmID string) int {
 }
 
 func (obj *CellsData) handleAllXmmRequests() {
-	r := regexp.MustCompile(";(print|p)(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
+	r := regexp.MustCompile("(( |\\t)+)?;(( |\\t)+)?(print|p)(( |\\t)+)?(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
 	for cellIndex := range obj.Data {
 		obj.Requests = append(obj.Requests, make(XmmRequests, 0))
 		obj.handleCellXmmRequests(r, cellIndex)
@@ -164,12 +149,6 @@ func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellInd
 	obj.Requests[cellIndex] = append(obj.Requests[cellIndex], xmmRequest)
 }
 
-func (obj *CellsData) checkIfDataCellExists() {
-	if containsAny(obj.Data[0].Code, ";data", "section .data") {
-		obj.HasDataCell = true
-	}
-}
-
 func containsAny(original string, subs ...string) bool {
 	for _, sub := range subs {
 		if strings.Contains(original, sub) {
@@ -180,9 +159,7 @@ func containsAny(original string, subs ...string) bool {
 }
 
 func (obj *CellsData) addDataSection() {
-	if obj.HasDataCell {
-		obj.Data[0].Code = strings.Replace(obj.Data[0].Code, ";data", "section .data", 1)
-	}
+	obj.Data[0].Code = "section .data\n" + obj.Data[0].Code
 }
 
 func (obj *CellsData) addTextSection() {
@@ -190,12 +167,7 @@ func (obj *CellsData) addTextSection() {
 	startText += "\nglobal _start\n"
 	startText += "section .text\n"
 	startText += "_start:\n"
-
-	if obj.HasDataCell {
-		obj.Data[1].Code = startText + obj.Data[1].Code
-	} else {
-		obj.Data[0].Code = startText + obj.Data[0].Code
-	}
+	obj.Data[1].Code = startText + obj.Data[1].Code
 }
 
 func (obj *CellsData) removeUserBreakpoints() {
@@ -208,14 +180,10 @@ func (obj *CellsData) removeUserBreakpoints() {
 
 func (obj *CellsData) addCellsBreakpoints() {
 	for index := range obj.Data {
-		if notDataCell(index, obj.HasDataCell) {
+		if index > 0 {
 			obj.Data[index].Code += "\nint 3\n"
 		}
 	}
-}
-
-func notDataCell(index int, hasDataCell bool) bool {
-	return (index == 0 && !hasDataCell) || index != 0
 }
 
 func (obj *CellsData) addExitSyscall() {
