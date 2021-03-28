@@ -52,11 +52,10 @@ type FPRegs struct {
 	_        [24]uint32 // padding
 }
 
-//XMMData ...
+//XMMData contains the data that has to be delivered to the frontend for each XMM register
 type XMMData struct {
 	XmmID       string
-	XmmValues   interface{}
-	PrintFormat string
+	XmmValues   []string
 }
 
 //CellRegisters contains the different XMMData in a cell.
@@ -113,15 +112,14 @@ func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhan
 	cellRegisters := CellRegisters{}
 
 	for _, request := range cellsData.Requests[cellIndex] {
-		fmt.Println("Request: ", request.PrintFormat)
+		// fmt.Println("Request: ", request.PrintFormat)
 		if request.PrintFormat == "" {
 			request.PrintFormat = cellsData.DefaultPrintingFormat[request.XmmNumber]
 		}
-		fmt.Println("Final request: ", request.PrintFormat)
+		// fmt.Println("Final request: ", request.PrintFormat)
 		xmmData := XMMData{
 			XmmID:       request.XmmID,
-			XmmValues:   xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat, request.PrintFormat),
-			PrintFormat: request.PrintFormat}
+			XmmValues:   xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat, request.PrintFormat)}
 
 		cellRegisters = append(cellRegisters, xmmData)
 	}
@@ -140,8 +138,7 @@ func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xm
 				xmmString := "XMM" + strconv.Itoa(index)
 				xmmData := XMMData{
 					XmmID:       xmmString,
-					XmmValues:   newXmmHandler.GetXMMData(index, cellsData.DefaultDataFormat[index], cellsData.DefaultPrintingFormat[index]),
-					PrintFormat: cellsData.DefaultPrintingFormat[index]}
+					XmmValues:   newXmmHandler.GetXMMData(index, cellsData.DefaultDataFormat[index], cellsData.DefaultPrintingFormat[index])}
 				cellRegisters = append(cellRegisters, xmmData)
 			}
 		}
@@ -252,11 +249,6 @@ func prLimit(pid int, limit uintptr, rlimit *syscall.Rlimit) error {
 	return nil
 }
 
-// func applyUlimit(pid int) {
-// 	limitCPUTime(pid, MAXCPUTIME)
-// 	limitFileSize(pid, MAXBYTES)
-// }
-
 func limitFileSize(pid int, maxSize uint64) {
 	var rlimit syscall.Rlimit
 
@@ -320,7 +312,6 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 
 	for cellIndex < len(cellsData.Data) {
 		newXmmHandler, getErr := getXMMRegs(pid)
-		fmt.Println(newXmmHandler)
 		if getErr != nil {
 			return killProcess(pid, "Could not get XMM registers.")
 		}
@@ -668,6 +659,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	runtime.UnlockOSThread()
 	deleteFiles(filepath, randomFile, &responseObj)
+	fmt.Println(responseObj)
 	response(&w, responseObj)
 
 }

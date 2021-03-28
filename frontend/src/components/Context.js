@@ -10,7 +10,6 @@ const ContextNewCellDown = React.createContext()
 const ContextDeleteCell = React.createContext()
 const ContextCopyToClipBoard = React.createContext()
 const ContextCleanCode = React.createContext()
-// const local_host = "http://localhost:8080"
 
 
 
@@ -95,18 +94,18 @@ function Provider({children}){
         cellsData[0].code += "pixeles: db 173, 68, 144, 255, 16, 54, 231, 255, 29, 178, 50, 255, 79, 211, 203, 255\n"
         cellsData[0].code += "mascara: db 0, 0, 0, 2, 0, 0, 0, 2, 1, 1, 1, 2, 1, 1, 1, 2"
     
-        cellsData[1].code = ";Cargo los pixeles en los registros xmm y los imprimo como enteros de 8 bits sin signo.\n"
+        cellsData[1].code = ";Cargo los pixeles en los registros xmm y los imprimo como enteros de 8 bits sin signo.\n\n"
         cellsData[1].code += "movdqu xmm0, [mascara]\n"
         cellsData[1].code += "movdqu xmm1, [pixeles]\n"
         cellsData[1].code += ";p/u xmm0.v16_int8\n"
         cellsData[1].code += ";p/u xmm1.v16_int8"
     
-        cellsData[2].code = ";Me quedo solo con la parte baja de xmm1 en forma de enteros de 16 bits e imprimo el registro de esa forma.\n"
+        cellsData[2].code = ";Me quedo solo con la parte baja de xmm1 en forma de enteros de 16 bits e imprimo el registro de esa forma.\n\n"
         cellsData[2].code += "pmovzxbw xmm1, xmm1\n"
         cellsData[2].code += ";p xmm1.v8_int16"
 
         cellsData[3].code = ";Reemplazo el valor alfa de cada pixel con el valor verde del mismo. Hacemos esto para ambos pixeles.\n"
-        cellsData[3].code += ";Esto nos permite conseguir el valor de gris haciendo sumas horizontales.\n"
+        cellsData[3].code += ";Esto nos permite conseguir el valor de gris haciendo sumas horizontales.\n\n"
         cellsData[3].code += "pshufhw xmm1, xmm1, 0b01100100\n"
         cellsData[3].code += "pshuflw xmm1, xmm1, 0b01100100"
     
@@ -114,23 +113,23 @@ function Provider({children}){
         cellsData[4].code += "phaddw xmm1, xmm1"
 
         cellsData[5].code = ";Hacemos la segunda suma horizontal.\n"
-        cellsData[5].code += ";Ahora tenemos en los 2 registros de la derecha el los valores de R + 2G + B de cada pixel.\n"
+        cellsData[5].code += ";Ahora tenemos en los 2 registros de la derecha el los valores de R + 2G + B de cada pixel.\n\n"
         cellsData[5].code += "phaddw xmm1, xmm1"
 
-        cellsData[6].code = ";Shifteamos a derecha para dividir los resultados por 4 y asi obtener el valor gris del pixel.\n"
+        cellsData[6].code = ";Shifteamos a derecha para dividir los resultados por 4 y asi obtener el valor gris del pixel.\n\n"
         cellsData[6].code += "psrlw xmm1, 2"
 
-        cellsData[7].code = ";Volvemos a almacenar los pixeles conseguidos como enteros de 8 bits. En este puento vuelvo a imprimir en 8 bits.\n"
+        cellsData[7].code = ";Volvemos a almacenar los pixeles conseguidos como enteros de 8 bits. En este puento vuelvo a imprimir en 8 bits.\n\n"
         cellsData[7].code += "packuswb xmm1, xmm1\n"
         cellsData[7].code += ";p xmm1.v16_int8"
 
-        cellsData[8].code = ";Inserto un 255 en el valor de alfa para restaurar el valor original.\n"
+        cellsData[8].code = ";Inserto un 255 en el valor de alfa para restaurar el valor original.\n\n"
         cellsData[8].code += "xor rax, rax\n"
         cellsData[8].code += "dec rax\n"
         cellsData[8].code += "pinsrb xmm1, al, 2"
 
         cellsData[9].code = ";Uso la mascara en xmm0 para hacer un broadcast de los valores conseguidos y del alfa "
-        cellsData[9].code += "como decia el enunciado.\n"
+        cellsData[9].code += "como decia el enunciado.\n\n"
         cellsData[9].code += "pshufb xmm1, xmm0"
 
         
@@ -140,15 +139,30 @@ function Provider({children}){
         
     }
 
+    function getRequestObj(cellsData){
+        let res = []
+        cellsData.forEach(cellData => {
+            res.push({
+                id: cellData.id,
+                code: cellData.code
+            })
+        });
+
+        return res
+    }
     function submitCode(){
         let url = new URL(window.location.href)
         url.port = "8080"
 
+        let requestObj = getRequestObj(CellsData)
+        
+
         setCellsData(cleanOutput(CellsData))
         axios.post(url + "codeSave", JSON.stringify({
-            CellsData: CellsData
+            CellsData: requestObj
         }))
         .then(response =>{
+            console.log(response)
             setConsoleOutput(response.data.ConsoleOut) 
             updateXMMData(response.data.CellRegs) 
         }) 

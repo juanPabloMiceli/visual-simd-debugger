@@ -8,21 +8,14 @@ import (
 	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/xmmhandler"
 )
 
-//XMMData ...
-type XMMData struct {
-	XmmID       string
-	XmmValues   interface{}
-	PrintFormat string
-}
-
-//CellData ...
+//CellData is the data of the cell that is received from the frontend
 type CellData struct {
 	ID     int       `json:"id"`
 	Code   string    `json:"code"`
-	Output []XMMData `json:"output"`
 }
 
-//CellsData ...
+//CellsData has the data of every cell received from the frontend as well as the 
+//requests each cell has to ask
 type CellsData struct {
 	Data                  []CellData `json:"CellsData"`
 	Requests              []XmmRequests

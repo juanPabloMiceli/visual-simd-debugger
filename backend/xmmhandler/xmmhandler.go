@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/big"
 	"reflect"
 	"strconv"
 )
@@ -49,6 +50,13 @@ const (
 
 	//SIGNEDFORMAT ...
 	SIGNEDFORMAT = "/d"
+
+	//HEXFORMAT ...
+	HEXFORMAT = "/x"
+
+	//BINARYFORMAT ...
+	BINARYFORMAT = "/t"
+
 )
 
 //XMM register is represented as a 16 bytes slice with the corresponding values
@@ -82,6 +90,79 @@ func (xmm XMM) Equals(newXmm XMM) bool {
 //Print prints the values in the xmm register as bytes.
 func (xmm XMM) Print() {
 	fmt.Println(xmm)
+}
+
+func reverseString(s string) string{
+	res := ""
+	for _, v := range s{
+		res = string(v) + res
+	}
+	return res
+}
+
+
+func numberToString(number int64, bits int64, base int64, symbol string) string{
+
+	var formatString string
+	switch(base){
+	case 16: 
+		formatString = "%X"
+	case 2:
+		formatString = "%b"
+	}
+
+    digits := bits
+    if(base == 16){
+        digits = bits/4
+    }
+    stringRes := symbol
+
+	bigNumber 	:= big.NewInt(number)
+	bigBits 	:= big.NewInt(bits)
+	bigBase 	:= big.NewInt(base)
+
+	bigZero := big.NewInt(0)
+	//If number is negative
+	if bigNumber.Cmp(bigZero) == -1{
+		bigExp := big.NewInt(2)
+		bigExp.Exp(bigExp, bigBits, nil)
+		bigNumber.Add(bigNumber, bigExp)
+	}
+
+    rawNumber := ""
+    var counter int64 = 1
+
+	//If bigNumber is greater or equal than bigBase
+	for(bigNumber.Cmp(bigBase) >= 0){
+		counter++
+		bigMod := big.NewInt(bigNumber.Int64())
+		bigMod.Mod(bigNumber, bigBase)
+		rawNumber += fmt.Sprintf(formatString, bigMod.Int64())
+		bigNumber.Div(bigNumber, bigBase)
+	}
+
+	rawNumber += fmt.Sprintf(formatString, bigNumber)
+
+
+	for( counter < digits){
+		stringRes += "0"
+		counter++
+	}
+
+	rawNumber = reverseString(rawNumber)
+	stringRes += rawNumber
+	stringRes = reverseString(stringRes)
+
+    counter = 4
+
+    for(counter < int64(len(stringRes)-2)){
+		stringRes = stringRes[0:counter] + " " + stringRes[counter:]
+		counter += 5
+    }
+
+    stringRes = reverseString(stringRes)
+
+    return stringRes
 }
 
 //PrintAs prints the values in the xmm register as bytes, words,
@@ -130,6 +211,111 @@ func (xmm XMM) PrintAs(format string) {
 	}
 
 }
+
+func (xmm XMM) AsHex8() []string{
+	data := make([]string, len(xmm))
+
+	for i := range data {
+		value := int8(xmm[i])
+		data[i] = numberToString(int64(value), 8, 16, "0x")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+
+func (xmm XMM) AsHex16() []string{
+	data := make([]string, len(xmm)/SIZEOFINT16)
+
+	for i := range data {
+		value := int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
+		data[i] = numberToString(int64(value), 16, 16, "0x")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+
+func (xmm XMM) AsHex32() []string{
+	data := make([]string, len(xmm)/SIZEOFINT32)
+
+	for i := range data {
+		value := int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
+		data[i] = numberToString(int64(value), 32, 16, "0x")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+//AsHex returns a slice with the values in the xmm register as hex quad words strings.
+func (xmm XMM) AsHex64() []string{
+	data := make([]string, len(xmm)/SIZEOFINT64)
+
+	for i := range data {
+		value := binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64])
+		data[i] = numberToString(int64(value), 64, 16, "0x")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+
+func (xmm XMM) AsBin8() []string{
+	data := make([]string, len(xmm))
+
+	for i := range data {
+		value := int8(xmm[i])
+		data[i] = numberToString(int64(value), 8, 2, "0b")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+
+func (xmm XMM) AsBin16() []string{
+	data := make([]string, len(xmm)/SIZEOFINT16)
+
+	for i := range data {
+		value := int16(binary.LittleEndian.Uint16(xmm[i*SIZEOFINT16 : (i+1)*SIZEOFINT16]))
+		data[i] = numberToString(int64(value), 16, 2, "0b")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+
+func (xmm XMM) AsBin32() []string{
+	data := make([]string, len(xmm)/SIZEOFINT32)
+
+	for i := range data {
+		value := int32(binary.LittleEndian.Uint32(xmm[i*SIZEOFINT32 : (i+1)*SIZEOFINT32]))
+		data[i] = numberToString(int64(value), 32, 2, "0b")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+//AsBin returns a slice with the values in the xmm register as hex quad words strings.
+func (xmm XMM) AsBin64() []string{
+	data := make([]string, len(xmm)/SIZEOFINT64)
+
+	for i := range data {
+		value := binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64])
+		data[i] = numberToString(int64(value), 64, 2, "0b")
+	}
+
+
+	reverseSlice(data)
+	return data
+}
+
 
 //AsUint8 returns a slice with the values in the xmm register as unsigned bytes.
 //Must convert values to int16 because javascript won't recognize bytes as numbers.
@@ -211,10 +397,12 @@ func (xmm XMM) AsUint64() []string {
 }
 
 //AsInt64 returns a slice with the values in the xmm register as quad words.
-func (xmm XMM) AsInt64() []int64 {
-	data := make([]int64, len(xmm)/SIZEOFINT64)
+func (xmm XMM) AsInt64() []string {
+	data := make([]string, len(xmm)/SIZEOFINT64)
 	for i := range data {
-		data[i] = int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
+		value := int64(binary.LittleEndian.Uint64(xmm[i*SIZEOFINT64 : (i+1)*SIZEOFINT64]))
+		data[i] = strconv.FormatInt(value, 10);
+
 	}
 	reverseSlice(data)
 	return data
@@ -269,32 +457,37 @@ func (handler XMMHandler) PrintAs(format string) {
 }
 
 //GetXMMData will call the corresponding As<format> function given the xmmNumber and the data format desired.
-func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string, printFormat string) interface{} {
+func (handler *XMMHandler) GetXMMData(xmmNumber int, dataFormat string, printFormat string) []string {
 
 	switch dataFormat {
 	case INT8STRING:
-		if printFormat == UNSIGNEDFORMAT {
-			return handler.Xmm[xmmNumber].AsUint8()
-		}
-		return handler.Xmm[xmmNumber].AsInt8()
+		if printFormat == UNSIGNEDFORMAT {return handler.Xmm[xmmNumber].AsUint8()}
+		if printFormat == SIGNEDFORMAT {return handler.Xmm[xmmNumber].AsInt8()}
+		if printFormat == HEXFORMAT	{return handler.Xmm[xmmNumber].AsHex8()}
+		if printFormat == BINARYFORMAT {return handler.Xmm[xmmNumber].AsBin8()}
+		panic("Wrong format")
+		
 
 	case INT16STRING:
-		if printFormat == UNSIGNEDFORMAT {
-			return handler.Xmm[xmmNumber].AsUint16()
-		}
-		return handler.Xmm[xmmNumber].AsInt16()
+		if printFormat == UNSIGNEDFORMAT {return handler.Xmm[xmmNumber].AsUint16()}
+		if printFormat == SIGNEDFORMAT {return handler.Xmm[xmmNumber].AsInt16()}
+		if printFormat == HEXFORMAT {return handler.Xmm[xmmNumber].AsHex16()}
+		if printFormat == BINARYFORMAT {return handler.Xmm[xmmNumber].AsBin16()}
+		panic("Wrong format")
 
 	case INT32STRING:
-		if printFormat == UNSIGNEDFORMAT {
-			return handler.Xmm[xmmNumber].AsUint32()
-		}
-		return handler.Xmm[xmmNumber].AsInt32()
+		if printFormat == UNSIGNEDFORMAT {return handler.Xmm[xmmNumber].AsUint32()}
+		if printFormat == SIGNEDFORMAT {return handler.Xmm[xmmNumber].AsInt32()}
+		if printFormat == HEXFORMAT {return handler.Xmm[xmmNumber].AsHex32()}
+		if printFormat == BINARYFORMAT {return handler.Xmm[xmmNumber].AsBin32()}
+		panic("Wrong format")
 
 	case INT64STRING:
-		if printFormat == UNSIGNEDFORMAT {
-			return handler.Xmm[xmmNumber].AsUint64()
-		}
-		return handler.Xmm[xmmNumber].AsInt64()
+		if printFormat == UNSIGNEDFORMAT {return handler.Xmm[xmmNumber].AsUint64()}
+		if printFormat == SIGNEDFORMAT {return handler.Xmm[xmmNumber].AsInt64()}
+		if printFormat == HEXFORMAT {return handler.Xmm[xmmNumber].AsHex64()}
+		if printFormat == BINARYFORMAT {return handler.Xmm[xmmNumber].AsBin64()}
+		panic("Wrong format")
 
 	case FLOAT32STRING:
 		return handler.Xmm[xmmNumber].AsFloat32()
