@@ -108,13 +108,13 @@ func response(w *http.ResponseWriter, obj interface{}) {
 	(*w).Write(responseJSON)
 }
 
-func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhandler.XMMHandler, cellIndex int) CellRegisters {
+func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhandler.XMMHandler, cellIndex int, xmmFormat *cellshandler.XMMFormat) CellRegisters {
 	cellRegisters := CellRegisters{}
 
 	for _, request := range cellsData.Requests[cellIndex] {
 		// fmt.Println("Request: ", request.PrintFormat)
 		if request.PrintFormat == "" {
-			request.PrintFormat = cellsData.DefaultPrintingFormat[request.XmmNumber]
+			request.PrintFormat = xmmFormat.DefaultPrintingFormat[request.XmmNumber]
 		}
 		// fmt.Println("Final request: ", request.PrintFormat)
 		xmmData := XMMData{
@@ -127,7 +127,7 @@ func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhan
 	return cellRegisters
 }
 
-func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, cellsData *cellshandler.CellsData, cellIndex int) CellRegisters {
+func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, cellsData *cellshandler.CellsData, cellIndex int, xmmFormat *cellshandler.XMMFormat) CellRegisters {
 	cellRegisters := CellRegisters{}
 
 	if cellIndex > 0 {
@@ -138,7 +138,7 @@ func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xm
 				xmmString := "XMM" + strconv.Itoa(index)
 				xmmData := XMMData{
 					XmmID:       xmmString,
-					XmmValues:   newXmmHandler.GetXMMData(index, cellsData.DefaultDataFormat[index], cellsData.DefaultPrintingFormat[index])}
+					XmmValues:   newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
 				cellRegisters = append(cellRegisters, xmmData)
 			}
 		}
@@ -175,19 +175,19 @@ func joinWithPriority(cellRegs1 *CellRegisters, cellRegs2 *CellRegisters) CellRe
 	return resCellRegisters
 }
 
-func setDefaultDataFormat(cellsData *cellshandler.CellsData, newDataFormat string) {
-	for i := range cellsData.DefaultDataFormat {
-		cellsData.DefaultDataFormat[i] = newDataFormat
+func setDefaultDataFormat(xmmFormat *cellshandler.XMMFormat, newDataFormat string) {
+	for i := range xmmFormat.DefaultDataFormat {
+		xmmFormat.DefaultDataFormat[i] = newDataFormat
 	}
 }
 
-func setDefaultPrintFormat(cellsData *cellshandler.CellsData, newPrintFormat string) {
-	for i := range cellsData.DefaultPrintingFormat {
-		cellsData.DefaultPrintingFormat[i] = newPrintFormat
+func setDefaultPrintFormat(xmmFormat *cellshandler.XMMFormat, newPrintFormat string) {
+	for i := range xmmFormat.DefaultPrintingFormat {
+		xmmFormat.DefaultPrintingFormat[i] = newPrintFormat
 	}
 }
 
-func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int) {
+func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int, xmmFormat *cellshandler.XMMFormat) {
 	r := regexp.MustCompile(";(print|p)(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5])?)\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
 	matches := r.FindAllStringSubmatch(cellsData.Data[cellIndex].Code, -1)
 
@@ -200,15 +200,15 @@ func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int) {
 				xmmNumber := cellshandler.XmmID2Number(values["xmmID"])
 				if !(values["printFormat"] == "") {
 					fmt.Println("El valor estaba vacio, nuevo valor: ", values["printFormat"])
-					cellsData.DefaultPrintingFormat[xmmNumber] = values["printFormat"]
+					xmmFormat.DefaultPrintingFormat[xmmNumber] = values["printFormat"]
 				}
-				cellsData.DefaultDataFormat[xmmNumber] = values["dataFormat"]
+				xmmFormat.DefaultDataFormat[xmmNumber] = values["dataFormat"]
 
 			} else {
 				//I want to change all defaultValues
 
-				setDefaultDataFormat(cellsData, values["dataFormat"])
-				setDefaultPrintFormat(cellsData, values["printFormat"])
+				setDefaultDataFormat(xmmFormat, values["dataFormat"])
+				setDefaultPrintFormat(xmmFormat, values["printFormat"])
 
 			}
 		}
@@ -277,7 +277,7 @@ func killProcess(pid int, err string) ResponseObj {
 	return ResponseObj{ConsoleOut: err + "\nProcess killed succesfully."}
 }
 
-func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
+func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandler.XMMFormat) ResponseObj {
 
 	res := ResponseObj{CellRegs: make([]CellRegisters, 0)}
 
@@ -316,9 +316,9 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int) ResponseObj {
 			return killProcess(pid, "Could not get XMM registers.")
 		}
 
-		updatePrintFormat(cellsData, cellIndex)
-		requestedCellRegisters := getRequestedRegisters(cellsData, &newXmmHandler, cellIndex)
-		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, cellsData, cellIndex)
+		updatePrintFormat(cellsData, cellIndex, xmmFormat)
+		requestedCellRegisters := getRequestedRegisters(cellsData, &newXmmHandler, cellIndex, xmmFormat)
+		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, cellsData, cellIndex, xmmFormat)
 		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
 		oldXmmHandler = newXmmHandler
@@ -488,11 +488,12 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	printJSONInput(req)
 
 	cellsData, decodeErr := getCellsData(req)
+	xmmFormat := cellshandler.NewXMMFormat()
 	if decodeErr != nil {
 		response(&w, ResponseObj{ConsoleOut: "Could't read data from the client properly."})
 		return
 	}
-	if cellsData.HandleCellsData() {
+	if cellsData.HandleCellsData(&xmmFormat) {
 		response(&w, ResponseObj{ConsoleOut: "Please insert some code."})
 		return
 	}
@@ -655,7 +656,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	}
 
-	responseObj := cellsLoop(&cellsData, microjailPID)
+	responseObj := cellsLoop(&cellsData, microjailPID, &xmmFormat)
 
 	runtime.UnlockOSThread()
 	deleteFiles(filepath, randomFile, &responseObj)

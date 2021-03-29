@@ -19,11 +19,16 @@ type CellData struct {
 type CellsData struct {
 	Data                  []CellData `json:"CellsData"`
 	Requests              []XmmRequests
+
+}
+
+//XMMFormat contains the printing format for every XMM
+type XMMFormat struct {
 	DefaultDataFormat     []string
 	DefaultPrintingFormat []string
 }
 
-//XmmRequest ...
+//XmmRequest has all the information required to get the data from ptrace.
 type XmmRequest struct {
 	XmmNumber   int
 	XmmID       string
@@ -31,12 +36,18 @@ type XmmRequest struct {
 	PrintFormat string
 }
 
-//XmmRequests ...
+//XmmRequests is a slice containing al XmmRequest in a cell
 type XmmRequests []XmmRequest
 
 //NewCellsData creates a new CellsData
 func NewCellsData() CellsData {
+	return CellsData{
+		Data:                  make([]CellData, 0),
+		Requests:              make([]XmmRequests, 0),
+	}
+}
 
+func NewXMMFormat() XMMFormat{
 	defaultDataFormat := make([]string, xmmhandler.XMMREGISTERS)
 	defaultPrintingFormat := make([]string, xmmhandler.XMMREGISTERS)
 
@@ -45,12 +56,11 @@ func NewCellsData() CellsData {
 		defaultPrintingFormat[i] = xmmhandler.SIGNEDFORMAT
 	}
 
-	return CellsData{
-		Data:                  make([]CellData, 0),
-		Requests:              make([]XmmRequests, 0),
+	return XMMFormat{
 		DefaultDataFormat:     defaultDataFormat,
 		DefaultPrintingFormat: defaultPrintingFormat,
 	}
+
 }
 
 //CellsData2SourceCode converts Cells Data to source code
@@ -65,9 +75,9 @@ func (obj *CellsData) CellsData2SourceCode() string {
 }
 
 //HandleCellsData edit cells code content such that the cells to source code convertion is direct
-func (obj *CellsData) HandleCellsData() bool {
+func (obj *CellsData) HandleCellsData(xmmFormat *XMMFormat) bool {
 	obj.toLowerCase()
-	obj.handleAllXmmRequests()
+	obj.handleAllXmmRequests(xmmFormat)
 	if obj.onlyData() {
 		return true
 	}
@@ -111,23 +121,23 @@ func XmmID2Number(xmmID string) int {
 	return xmmNumber
 }
 
-func (obj *CellsData) handleAllXmmRequests() {
+func (obj *CellsData) handleAllXmmRequests(xmmFormat *XMMFormat) {
 	r := regexp.MustCompile("(( |\\t)+)?;(( |\\t)+)?(print|p)(( |\\t)+)?(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
 	for cellIndex := range obj.Data {
 		obj.Requests = append(obj.Requests, make(XmmRequests, 0))
-		obj.handleCellXmmRequests(r, cellIndex)
+		obj.handleCellXmmRequests(r, cellIndex, xmmFormat)
 	}
 
 }
 
-func (obj *CellsData) handleCellXmmRequests(r *regexp.Regexp, cellIndex int) {
+func (obj *CellsData) handleCellXmmRequests(r *regexp.Regexp, cellIndex int, xmmFormat *XMMFormat) {
 	matches := r.FindAllStringSubmatch(obj.Data[cellIndex].Code, -1)
 	for _, match := range matches {
-		obj.handleXmmRequest(r, match, cellIndex)
+		obj.handleXmmRequest(r, match, cellIndex, xmmFormat)
 	}
 }
 
-func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellIndex int) {
+func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellIndex int, xmmFormat *XMMFormat) {
 
 	var xmmRequest XmmRequest
 
@@ -137,7 +147,7 @@ func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellInd
 	xmmRequest.XmmNumber = XmmID2Number(xmmRequest.XmmID)
 	xmmRequest.DataFormat = values["dataFormat"]
 	xmmRequest.PrintFormat = values["printFormat"]
-	obj.DefaultDataFormat[xmmRequest.XmmNumber] = xmmRequest.DataFormat
+	xmmFormat.DefaultDataFormat[xmmRequest.XmmNumber] = xmmRequest.DataFormat
 
 	obj.Requests[cellIndex] = append(obj.Requests[cellIndex], xmmRequest)
 }
