@@ -494,6 +494,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if cellsData.HandleCellsData(&xmmFormat) {
+
 		response(&w, ResponseObj{ConsoleOut: "Please insert some code."})
 		return
 	}

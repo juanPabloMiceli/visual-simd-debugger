@@ -78,7 +78,7 @@ func (obj *CellsData) CellsData2SourceCode() string {
 func (obj *CellsData) HandleCellsData(xmmFormat *XMMFormat) bool {
 	obj.toLowerCase()
 	obj.handleAllXmmRequests(xmmFormat)
-	if obj.onlyData() {
+	if !obj.hasCode() {
 		return true
 	}
 	obj.addDataSection()
@@ -90,8 +90,15 @@ func (obj *CellsData) HandleCellsData(xmmFormat *XMMFormat) bool {
 	return false
 }
 
-func (obj *CellsData) onlyData() bool {
-	return len(obj.Data) == 1
+func (obj *CellsData) hasCode() bool {
+	for i, data := range obj.Data {
+		if i > 0{
+			if len(data.Code) > 0{
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (obj *CellsData) toLowerCase() {

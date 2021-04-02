@@ -1,22 +1,60 @@
 #App {
 
-  background-color:#1a1a20;
+  background-color:#383838;
+  /* background-color:#1a1a20; */
   position: absolute;
   top: 0px;
   left: 0px;
-  min-height: 100vh;
-  min-width: 100vw;
+  min-height: 100vh; 
+  /* min-width: 50vw;*/
+}
+body{
+
+  overflow-x: hidden;
+  width: 90%;
 }
 
- .code{
-  background-color:#e0e0e0;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+/* width */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #383838;
+  /* background: #f1f1f1; */
+
+  
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #999;
+  /* background: #888; */
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+  /* background: #555; */
+}
+
+
+.code{
+  background-color:#1e1e1e;
+  /* background-color: #322931; */
+  color: #fafafa;
+  display: inline-block;
+  margin-left: 5vw;
+  margin-right: 5vw;
   min-width: 90vw;
+  min-height: '38px';
+  z-index: 0;
+  font-size: '15px';
+  box-sizing: border-box;
 }
 
-.submitContainer{
+.cleanCodeContainer{
   position: relative;
   margin-left: 5vw;
   margin-right: 5vw;
@@ -28,30 +66,17 @@
 
 }
 
-.btn-submit{
-  bottom: 0;
-  position: absolute;
-  padding: 8px 6px;
-  left: 0;
-}
+
+
 
 .btn-clean-code{
   bottom: 0;
   position: absolute;
   padding: 8px 6px;
-  right: 0;
+  left: 0;
 
 }
 
-.btn-git{
-  font-size: larger;
-  bottom: 0;
-  position: absolute;
-  padding: 6px 10px;
-  left: 50%;
-  transform: translateX(-50%);
-
-}
 
 .delCell{
   margin-left: auto;
@@ -66,6 +91,7 @@
   padding: 6px 8px;
   margin-left: 90vw;
   transform: translate(-100%, -50%);
+  z-index: 1;
 }
 
 
@@ -73,17 +99,22 @@
 .copyContainer{
   position: relative;
   min-width: 90vw;
-  min-height: 2vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  /* margin-top: 2vh; */
+  min-height: 4vh;
+  margin-left: 5vw;
+  margin-right: 5vw;
 }
 
 #copyToClipButton{
 
-  position: relative;
+  position: absolute;
   padding: 8px 6px;
+  right: 0;
+}
+
+.btn-submit{
+  position: absolute;
+  padding: 8px 6px;
+  left: 0;
 }
 
 .outputContainer{
@@ -233,4 +264,9 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+}
+
+
+#comment{
+  color: rgb(122, 184, 0);
 }

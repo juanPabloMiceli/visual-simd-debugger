@@ -67,7 +67,7 @@ function cleanOutput(cellsData){
 function Provider({children}){
     
     const [CellsData, setCellsData] = useState(initExample());
-    const [TotalCells, setTotalCells] = useState(10);
+    const [TotalCells, setTotalCells] = useState(8);
     const [ConsoleOutput, setConsoleOutput] = useState("");
 
     function initCell(_id){
@@ -82,7 +82,7 @@ function Provider({children}){
 
         let cellsData = []
 
-        for(let i = 0; i < 10; i++){
+        for(let i = 0; i < 8; i++){
             cellsData.push(initCell(i))
         }
 
@@ -94,46 +94,37 @@ function Provider({children}){
         cellsData[0].code += "pixeles: db 173, 68, 144, 255, 16, 54, 231, 255, 29, 178, 50, 255, 79, 211, 203, 255\n"
         cellsData[0].code += "mascara: db 0, 0, 0, 2, 0, 0, 0, 2, 1, 1, 1, 2, 1, 1, 1, 2"
     
-        cellsData[1].code = ";Cargo los pixeles en los registros xmm y los imprimo como enteros de 8 bits sin signo.\n\n"
+        cellsData[1].code = ";Cargo la mascara en xmm0 y los 2 primeros pixeles en xmm1 e imprimo los valores.\n\n"
         cellsData[1].code += "movdqu xmm0, [mascara]\n"
-        cellsData[1].code += "movdqu xmm1, [pixeles]\n"
+        cellsData[1].code += "pmovzxbw xmm1, [pixeles]\n\n"
         cellsData[1].code += ";p/u xmm0.v16_int8\n"
-        cellsData[1].code += ";p/u xmm1.v16_int8"
+        cellsData[1].code += ";p/u xmm1.v8_int16"
+
+        cellsData[2].code = ";Reemplazo el valor alfa de cada pixel con el valor verde del mismo. Hacemos esto para ambos pixeles.\n"
+        cellsData[2].code += ";Esto nos permite conseguir el valor de gris haciendo sumas horizontales.\n\n"
+        cellsData[2].code += "pshufhw xmm1, xmm1, 0b01100100\n"
+        cellsData[2].code += "pshuflw xmm1, xmm1, 0b01100100"
     
-        cellsData[2].code = ";Me quedo solo con la parte baja de xmm1 en forma de enteros de 16 bits e imprimo el registro de esa forma.\n\n"
-        cellsData[2].code += "pmovzxbw xmm1, xmm1\n"
-        cellsData[2].code += ";p xmm1.v8_int16"
+        cellsData[3].code = ";Hacemos la primer suma horizontal.\n"
+        cellsData[3].code += ";Ahora tenemos en los 2 registros de la derecha el los valores de R + 2G + B de cada pixel.\n\n"
+        cellsData[3].code += "phaddw xmm1, xmm1\n"
+        cellsData[3].code += "phaddw xmm1, xmm1"
 
-        cellsData[3].code = ";Reemplazo el valor alfa de cada pixel con el valor verde del mismo. Hacemos esto para ambos pixeles.\n"
-        cellsData[3].code += ";Esto nos permite conseguir el valor de gris haciendo sumas horizontales.\n\n"
-        cellsData[3].code += "pshufhw xmm1, xmm1, 0b01100100\n"
-        cellsData[3].code += "pshuflw xmm1, xmm1, 0b01100100"
-    
-        cellsData[4].code = ";Hacemos la primer suma horizontal.\n"
-        cellsData[4].code += "phaddw xmm1, xmm1"
+        cellsData[4].code = ";Shifteamos a derecha para dividir los resultados por 4 y asi obtener el valor gris del pixel.\n\n"
+        cellsData[4].code += "psrlw xmm1, 2"
 
-        cellsData[5].code = ";Hacemos la segunda suma horizontal.\n"
-        cellsData[5].code += ";Ahora tenemos en los 2 registros de la derecha el los valores de R + 2G + B de cada pixel.\n\n"
-        cellsData[5].code += "phaddw xmm1, xmm1"
+        cellsData[5].code = ";Volvemos a almacenar los pixeles conseguidos como enteros de 8 bits. En este punto vuelvo a imprimir en 8 bits.\n\n"
+        cellsData[5].code += "packuswb xmm1, xmm1\n"
+        cellsData[5].code += ";p xmm1.v16_int8"
 
-        cellsData[6].code = ";Shifteamos a derecha para dividir los resultados por 4 y asi obtener el valor gris del pixel.\n\n"
-        cellsData[6].code += "psrlw xmm1, 2"
+        cellsData[6].code = ";Inserto un 255 en el valor de alfa para restaurar el valor original.\n\n"
+        cellsData[6].code += "xor rax, rax\n"
+        cellsData[6].code += "dec rax\n"
+        cellsData[6].code += "pinsrb xmm1, al, 2"
 
-        cellsData[7].code = ";Volvemos a almacenar los pixeles conseguidos como enteros de 8 bits. En este puento vuelvo a imprimir en 8 bits.\n\n"
-        cellsData[7].code += "packuswb xmm1, xmm1\n"
-        cellsData[7].code += ";p xmm1.v16_int8"
-
-        cellsData[8].code = ";Inserto un 255 en el valor de alfa para restaurar el valor original.\n\n"
-        cellsData[8].code += "xor rax, rax\n"
-        cellsData[8].code += "dec rax\n"
-        cellsData[8].code += "pinsrb xmm1, al, 2"
-
-        cellsData[9].code = ";Uso la mascara en xmm0 para hacer un broadcast de los valores conseguidos y del alfa "
-        cellsData[9].code += "como decia el enunciado.\n\n"
-        cellsData[9].code += "pshufb xmm1, xmm0"
-
-        
-
+        cellsData[7].code = ";Uso la mascara en xmm0 para hacer un broadcast de los valores conseguidos y del alfa "
+        cellsData[7].code += "como decia el enunciado.\n\n"
+        cellsData[7].code += "pshufb xmm1, xmm0"
 
         return cellsData
         
@@ -164,7 +155,9 @@ function Provider({children}){
         .then(response =>{
             console.log(response)
             setConsoleOutput(response.data.ConsoleOut) 
-            updateXMMData(response.data.CellRegs) 
+            if(response.data.CellRegs){
+                updateXMMData(response.data.CellRegs) 
+            }
         }) 
         .catch(error => {
             setConsoleOutput(error) 
@@ -192,13 +185,19 @@ function Provider({children}){
         setCellsData(copy)
 
         setTotalCells(TotalCells + 1)
-        document.getElementById(buttonNumber.toString()).focus()
+        let ca = document.getElementById("code"+buttonNumber.toString())
+        console.log({ca})
+        console.log({buttonNumber})
+        if(ca){
+            ca.focus()
+        }
     }
 
 
     function deleteCell(e, buttonNumber){
         e.preventDefault()
-        if(TotalCells > 2){
+        
+        if(TotalCells > 2 && buttonNumber > 0){
             let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
             copy.splice(buttonNumber, 1)
             copy = fixIndexing(copy)
@@ -250,6 +249,7 @@ function Provider({children}){
             e.preventDefault()
             let copy = [initCell(0), initCell(1)]
             setCellsData(copy)
+            setTotalCells(2)
         }
         
     }
@@ -263,7 +263,7 @@ function Provider({children}){
 
     }
 
-    function updateCodeData(cellId, newCode, textArea){
+    function updateCodeData(cellId, newCode){
         let copy = JSON.parse(JSON.stringify(CellsData))
         copy[cellId].code = newCode
         setCellsData(copy)
@@ -298,8 +298,11 @@ function Provider({children}){
                 newCell(event, parseInt(event.target.id))
             }
             if(event.key.toLowerCase() === "d" && event.ctrlKey && event.altKey){
-                if(parseInt(event.target.id) !== 0){//Won't delete data cell
-                    deleteCell(event, parseInt(event.target.id))
+                console.log({event})
+                if(parseInt(event.target.id) !== "code0"){//Won't delete data cell
+                    let number =  event.target.id.replace( /^\D+/g, ''); // replace all leading non-digits with nothing
+                    console.log({number})
+                    deleteCell(event, number)
                 }
             }
         }

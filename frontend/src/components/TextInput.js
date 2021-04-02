@@ -1,124 +1,26 @@
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
+import Editor from 'react-simple-code-editor'
 import {useContextData, useContextUpdateData} from './Context'
+import "highlight.js/lib/languages/x86asm"
 
 export default function TextInput(props){
 
-
-	const textArea = useRef(null)
-
 	const VisualizerData = useContextData()
 	const updateData = useContextUpdateData()
-	let currentCode = VisualizerData.CellsData[props.id].code
-
-
-
-
-	useEffect(() => {
-		setInputHeight(textArea.current, '38px')
-	}, []);
-
-	useEffect(() => {
-		setInputHeight(textArea.current, '38px')
-	}, [currentCode]);
-
 	
-	function setInputHeight(element, defaultHeight){
-		if(element){
-			const target = element.target ? element.target : element
-			target.style.height = defaultHeight
-			let height = parseInt(target.scrollHeight)+2
-			target.style.height = height.toString()+'px'
-		}
-	}
-	
+	const hljs = require('highlight.js')
+	hljs.registerLanguage('x86asm', require('highlight.js/lib/languages/x86asm'))
 
-	function updateCode(e){
-		setInputHeight(e, '38px')
-		updateData(props.id, e.target.value)
-	}
-
-	const style = {
-		minHeight: '38px',
-		resize: 'none',
-		padding: '9px',
-		boxSizing: 'border-box',
-		fontSize: '15px'
-	}
-
-	return (
-		<div className="inputContainer">
-			<textarea
-			style={style}
-			ref={textArea}
-			rows={1}
-			id={props.id}
+	return(
+		<Editor
 			className={"code"}
-			onChange={updateCode}
+			textareaClassName={"code"}
+			textareaId={"code"+props.id}
+			tabSize={4}
 			value={VisualizerData.CellsData[props.id].code}
-			placeholder={"Code goes here"}
-			/>		
-		</div>
+			onValueChange={(e) => updateData(props.id, e)}
+			highlight={(e) => hljs.highlight('x86asm', e, true).value}
+			padding={9}
+			/>
 	)
 }
-
-
-
-
-
-// import React, { useEffect, useRef } from 'react'
-// import autosize from 'autosize'
-// import {useContextData, useContextUpdateData, useState} from './Context'
-
-// export default function TextInput(props){
-
-
-// 	const textArea = useRef(null)
-
-// 	const VisualizerData = useContextData()
-// 	const updateData = useContextUpdateData()
-// 	// const [code, setcode] = useState(VisualizerData.CellsData[props.id].code);
-
-
-
-// 	useEffect(() => {
-		
-// 		textArea.current.focus()		
-// 		autosize(textArea.current)
-// 	}, []);
-
-// 	useEffect(() => {
-		
-// 		textArea.current.focus()	
-// 		autosize(textArea.current)
-// 	}, [VisualizerData]);
-	
-// 	function updateCode(e){
-// 		console.log("Changing")
-
-// 		updateData(props.id, e.target.value, textArea)
-// 	}
-
-// 	const style = {
-// 		minHeight: '38px',
-// 		resize: 'none',
-// 		padding: '9px',
-// 		boxSizing: 'border-box',
-// 		fontSize: '15px'
-// 	}
-
-// 	return (
-// 		<div className="inputContainer">
-// 			<textarea
-// 			style={style}
-// 			ref={textArea}
-// 			rows={1}
-// 			id="code"
-// 			onChange={updateCode}
-// 			value={VisualizerData.CellsData[props.id].code}
-// 			placeholder={"Code goes here"}
-// 			/>		
-// 		</div>
-// 	)
-// }
-
-

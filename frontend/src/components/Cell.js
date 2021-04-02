@@ -1,5 +1,6 @@
 import React, {} from 'react';
 import TextInput from './TextInput';
+// import TextInputV2 from './TextInputV2';
 import { useContextData, useContextDeleteCell, useContextNewCell} from './Context'
 import XMMS from './XMMS'
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"

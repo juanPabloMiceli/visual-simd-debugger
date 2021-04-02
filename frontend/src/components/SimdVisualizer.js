@@ -3,10 +3,8 @@ import Cell from './Cell'
 import { useContextData, useContextSubmit, useContextCopyToClipBoard, useContextCleanCode } from "./Context" 
 import TextOutput from './TextOutput';
 import DataCell from './DataCell'
-import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
-import { faGithub } from '@fortawesome/free-brands-svg-icons';
 
-
+import GitHubCorners from '@uiw/react-github-corners';
 
 
 function SimdVisualizer(){
@@ -29,24 +27,23 @@ function SimdVisualizer(){
                     cellNumber={cell.id}/>)
     })
 
-    function openGit(e){
-        e.preventDefault()
-        window.open('https://gitlab.com/juampi_miceli/visual-simd-debugger', '_blank')
-    }
-
 
     return (
         
             <div>
-                <div className="submitContainer">
-                    <button className="btn-submit" id="submitButton" onClick={submitCode}>Run Code</button>
-                    <button className="btn-git" onClick={openGit}><FontAwesomeIcon icon={faGithub}/></button>
+                <GitHubCorners
+                    position="right"
+                    href="https://gitlab.com/juampi_miceli/visual-simd-debugger"
+                    target="_blank"
+                />
+                <div className="cleanCodeContainer">
                     <button className="btn-clean-code" onClick={cleanCode}>Clean Code</button>
                 </div>
                 <DataCell cellNumber={0} id={"dataCell"}/>
                 {CellComponents}
                 <div className="copyContainer">
-                    <button className="btn btn-DelCell" id="copyToClipButton" onClick={copyToClipBoard}>Copy code to clipboard</button>
+                    <button className="btn btn-Copy" id="copyToClipButton" onClick={copyToClipBoard}>Copy code to clipboard</button>
+                    <button className="btn-submit" id="submitButton" onClick={submitCode}>Run Code</button>
                 </div>
                 <TextOutput/>
             </div>

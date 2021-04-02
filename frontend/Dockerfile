@@ -1,3 +1,11 @@
+#Build from visual-simd-debugger/frontend
+
+#To build:
+#sudo docker build ./ -t visual-simd-front
+
+#To run:
+#sudo docker run -d --rm --name v-simd-front --network host visual-simd-front
+
 FROM node:alpine
 
 WORKDIR '/app'
@@ -5,8 +13,9 @@ WORKDIR '/app'
 COPY package.json .
 RUN npm install
 COPY . .
-RUN yarn build
-RUN npm install -g serve
+RUN \
+yarn build && \
+npm install -g serve
 CMD ["serve", "-p", "3000", "-s", "build"]
 
 

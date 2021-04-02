@@ -9,28 +9,26 @@
 FROM golang:latest as builder
 
 #Update system and install nasm
+#Then install git and libcap-dev because minijail needs it
+#Then install libseccomp-dev for using microjail
+#Then download minijail
 WORKDIR /
-RUN apt-get update
-RUN apt-get install nasm
-
-#Need this in order to use minijail
-RUN apt-get install -y libcap-dev 
-RUN apt-get install -y git
-
-#Need this in order to use microjail
-RUN apt-get install -y libseccomp-dev
-
-#Downloading minijail
-
-RUN git clone https://android.googlesource.com/platform/external/minijail ./minijail
+RUN \
+apt-get update && \
+apt-get install nasm && \
+apt-get install -y libcap-dev && \ 
+apt-get install -y git && \
+apt-get install -y libseccomp-dev && \
+git clone https://android.googlesource.com/platform/external/minijail ./minijail
 
 #Installing minijail
 WORKDIR /minijail
-RUN make LIBDIR=/lib64
 
-RUN cp libminijail.so /lib64/
-RUN cp libminijailpreload.so /lib64/
-RUN cp minijail0 /usr/bin/
+RUN \
+make LIBDIR=/lib64 && \
+cp libminijail.so /lib64/ && \
+cp libminijailpreload.so /lib64/ && \
+cp minijail0 /usr/bin/
 
 WORKDIR /go/src
 #Copy all dependencies
