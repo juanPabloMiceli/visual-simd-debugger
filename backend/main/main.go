@@ -72,7 +72,8 @@ func (cellRegs *CellRegisters) Contains(newXmmData *XMMData) bool {
 	return false
 }
 
-//ResponseObj ...
+//ResponseObj is the object send to the client as a JSON.
+//This contains the console error and the info of every register to print.
 type ResponseObj struct {
 	ConsoleOut string
 	CellRegs   []CellRegisters //Could be a slice of any of int or float types
@@ -80,19 +81,6 @@ type ResponseObj struct {
 
 func enableCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-}
-
-func runningInDockerContainer() bool {
-	// docker creates a .dockerenv file at the root
-	// of the directory tree inside the container.
-	// if this file exists then the viewer is running
-	// from inside a container so return true
-
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return true
-	}
-
-	return false
 }
 
 func response(w *http.ResponseWriter, obj interface{}) {
@@ -487,8 +475,8 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	printJSONInput(req)
 
-	cellsData, decodeErr := getCellsData(req)
 	xmmFormat := cellshandler.NewXMMFormat()
+	cellsData, decodeErr := getCellsData(req)
 	if decodeErr != nil {
 		response(&w, ResponseObj{ConsoleOut: "Could't read data from the client properly."})
 		return
@@ -649,13 +637,13 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if optErr != nil {
-		res := ResponseObj{ConsoleOut: optErr.Error()}
-		deleteFiles(filepath, randomFile, &res)
-		response(&w, res)
-		return
+	// if optErr != nil {
+	// 	res := ResponseObj{ConsoleOut: optErr.Error()}
+	// 	deleteFiles(filepath, randomFile, &res)
+	// 	response(&w, res)
+	// 	return
 
-	}
+	// }
 
 	responseObj := cellsLoop(&cellsData, microjailPID, &xmmFormat)
 

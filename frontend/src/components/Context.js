@@ -176,8 +176,9 @@ function Provider({children}){
     }
     function newCell(e, buttonNumber){
         e.preventDefault()
+        if(buttonNumber === 0) return;
         let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
-        setCellsData([initCell(0)])
+        // setCellsData([initCell(0)])
         
         copy.splice(buttonNumber, 0, initCell(TotalCells))
 
@@ -186,13 +187,21 @@ function Provider({children}){
 
         setTotalCells(TotalCells + 1)
         let ca = document.getElementById("code"+buttonNumber.toString())
-        console.log({ca})
-        console.log({buttonNumber})
         if(ca){
             ca.focus()
         }
     }
 
+    function focusTextElement(buttonNumber){
+        let ca = document.getElementById("code"+buttonNumber.toString())
+        while(!ca && buttonNumber > 0){
+            buttonNumber--
+            ca = document.getElementById("code"+buttonNumber.toString())
+        }
+        if(ca){
+            ca.focus()
+        }
+    }
 
     function deleteCell(e, buttonNumber){
         e.preventDefault()
@@ -204,14 +213,15 @@ function Provider({children}){
             setCellsData(copy)
             setTotalCells(TotalCells - 1)
         }
+        focusTextElement(buttonNumber)
     }
 
     function wantToPrint(cell){
 
         if(cell.code.toLowerCase().includes(';nope')){
-            return false;
+            return false
         }
-        return true;
+        return true
     }
 
     function copyStringToClipboard (str) {
@@ -286,22 +296,23 @@ function Provider({children}){
     function checkKey(event){
         if(event.repeat){
             return  
-        } 
+        }
+        let number;
+        if(event.target.id){
+            number =  parseInt(event.target.id.replace( /^\D+/g, ''));
+        }
         if(event.key === "Enter" && event.ctrlKey){
             submitCode(event)
         }
         if(event.target.tagName === "TEXTAREA"){
             if(event.key === "ArrowDown" && event.ctrlKey){
-                newCell(event, parseInt(event.target.id)+1)
+                newCell(event, number+1)
             }
             if(event.key === "ArrowUp" && event.ctrlKey){
-                newCell(event, parseInt(event.target.id))
+                newCell(event, number)
             }
             if(event.key.toLowerCase() === "d" && event.ctrlKey && event.altKey){
-                console.log({event})
-                if(parseInt(event.target.id) !== "code0"){//Won't delete data cell
-                    let number =  event.target.id.replace( /^\D+/g, ''); // replace all leading non-digits with nothing
-                    console.log({number})
+                if(number !== "0"){//Won't delete data cell
                     deleteCell(event, number)
                 }
             }
