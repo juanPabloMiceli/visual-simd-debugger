@@ -554,7 +554,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	// nasmErr = nasmCmd.Wait()
 
-	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-no-stdlib", "-static", "-o", randomFile, randomFile+".o")
+	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-nostdlib", "-static", "-o", randomFile, randomFile+".o")
 
 	linkingCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Run()
