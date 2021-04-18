@@ -54,8 +54,8 @@ type FPRegs struct {
 
 //XMMData contains the data that has to be delivered to the frontend for each XMM register
 type XMMData struct {
-	XmmID       string
-	XmmValues   []string
+	XmmID     string
+	XmmValues []string
 }
 
 //CellRegisters contains the different XMMData in a cell.
@@ -106,8 +106,8 @@ func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhan
 		}
 		// fmt.Println("Final request: ", request.PrintFormat)
 		xmmData := XMMData{
-			XmmID:       request.XmmID,
-			XmmValues:   xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat, request.PrintFormat)}
+			XmmID:     request.XmmID,
+			XmmValues: xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat, request.PrintFormat)}
 
 		cellRegisters = append(cellRegisters, xmmData)
 	}
@@ -125,8 +125,8 @@ func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xm
 			if !oldXmm.Equals(newXmm) {
 				xmmString := "XMM" + strconv.Itoa(index)
 				xmmData := XMMData{
-					XmmID:       xmmString,
-					XmmValues:   newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
+					XmmID:     xmmString,
+					XmmValues: newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
 				cellRegisters = append(cellRegisters, xmmData)
 			}
 		}
@@ -176,7 +176,7 @@ func setDefaultPrintFormat(xmmFormat *cellshandler.XMMFormat, newPrintFormat str
 }
 
 func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int, xmmFormat *cellshandler.XMMFormat) {
-	r := regexp.MustCompile(";(print|p)(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5])?)\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
+	r := regexp.MustCompile(`;(print|p)(?P<printFormat>\/(d|x|t|u))?(( |\t)+)?(?P<xmmID>xmm([0-9]|1[0-5])?)\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)`)
 	matches := r.FindAllStringSubmatch(cellsData.Data[cellIndex].Code, -1)
 
 	if len(matches) > 0 {
@@ -336,33 +336,18 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 	return res
 }
 
-func printLibraries(pid int) {
-	content, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/maps")
-	if err != nil {
-		panic(err)
-	}
+// func printLibraries(pid int) {
+// 	content, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/maps")
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	fmt.Println(string(content))
-}
-
-func getProcessStatus(pid int, paramString string) string {
-
-	content, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
-	if err != nil {
-		panic(err)
-	}
-	contentStr := string(content)
-	index := strings.Index(contentStr, paramString)
-	return string(contentStr[index+len(paramString)])
-}
+// 	fmt.Println(string(content))
+// }
 
 func pidExists(pid int) bool {
-
 	_, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func deleteFile(filePath string) error {
@@ -487,8 +472,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var fileText string
-	fileText = cellsData.CellsData2SourceCode()
+	var fileText = cellsData.CellsData2SourceCode()
 
 	execMap, missingPaths := checkExecutables("nasm", "minijail0", "ld", "microjail")
 
@@ -642,7 +626,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	// 	deleteFiles(filepath, randomFile, &res)
 	// 	response(&w, res)
 	// 	return
-
 	// }
 
 	responseObj := cellsLoop(&cellsData, microjailPID, &xmmFormat)

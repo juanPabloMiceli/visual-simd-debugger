@@ -98,3 +98,5 @@ Como limpiar el código de todas las celdas a la vez es medio incómodo, se pued
 * `Ctrl+ArrowDown`: Inserta una celda debajo de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al final.
 * `Ctrl+ArrowUp`: Inserta una celda arriba de la celda actual. Si no se está parado sobre ninguna celda, la misma se insertará al principio.
 * `Ctrl+Alt+D`: Elimina la celda actual. **Esta acción no se puede deshacer.**
+* `Alt+ArrowDown`: Mueve el cursor una celda debajo de la celda actual.
+* `Alt+ArrowUp`: Mueve el cursor una celda arriba de la celda actual.

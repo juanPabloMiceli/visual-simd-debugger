@@ -301,27 +301,33 @@ function Provider({children}){
         if(event.target.id){
             number =  parseInt(event.target.id.replace( /^\D+/g, ''));
         }
-        if(event.key === "Enter" && event.ctrlKey){
+        if(event.key === "Enter" && event.ctrlKey){//SubmitCode
             submitCode(event)
         }
         if(event.target.tagName === "TEXTAREA"){
-            if(event.key === "ArrowDown" && event.ctrlKey){
+            if(event.key === "ArrowDown" && event.ctrlKey){//NewCellUp
                 newCell(event, number+1)
             }
-            if(event.key === "ArrowUp" && event.ctrlKey){
+            if(event.key === "ArrowUp" && event.ctrlKey){//NewCellDown
                 newCell(event, number)
             }
-            if(event.key.toLowerCase() === "d" && event.ctrlKey && event.altKey){
+            if(event.key.toLowerCase() === "d" && event.ctrlKey && event.altKey){//DeleteCurrentCell
                 if(number !== "0"){//Won't delete data cell
                     deleteCell(event, number)
                 }
             }
+            if(event.key === "ArrowUp" && event.altKey){//SelectCellAbove
+                focusTextElement(number-1)
+            }
+            if(event.key === "ArrowDown" && event.altKey){//SelectCellBelow
+                focusTextElement(number+1)
+            }
         }
         else{
-            if(event.key === "ArrowDown" && event.ctrlKey){
+            if(event.key === "ArrowDown" && event.ctrlKey){//NewCellAtBeginning
                 newCell(event, VisualizerData.TotalCells)
             }
-            if(event.key === "ArrowUp" && event.ctrlKey){
+            if(event.key === "ArrowUp" && event.ctrlKey){//NewCellAtEnd
                 newCell(event, 1)
             }
         }
