@@ -9,6 +9,7 @@ const ContextNewCell = React.createContext()
 const ContextNewCellDown = React.createContext()
 const ContextDeleteCell = React.createContext()
 const ContextCopyToClipBoard = React.createContext()
+const ContextToggleCellRegs = React.createContext()
 const ContextCleanCode = React.createContext()
 
 
@@ -49,6 +50,10 @@ export function useContextCleanCode(){
     return useContext(ContextCleanCode)
 }
 
+export function useContextToggleCellRegs(){
+    return useContext(ContextToggleCellRegs)
+}
+
 
 axios.defaults.headers.common = {
 	"Content-Type": "application/json"
@@ -74,7 +79,8 @@ function Provider({children}){
         return {
             id: _id,
             code: "",
-            output: []
+            output: [],
+            isVisible: true
         }
     }
 
@@ -164,15 +170,13 @@ function Provider({children}){
         })
     }
 
-
-
     function fixIndexing(cells){
-
+        let copy = JSON.parse(JSON.stringify(cells))
         for(let i=0; i<cells.length; i++){
-            cells[i] = {id: i, code: cells[i].code, output: cells[i].output}
+            copy[i].id = i
         }
 
-        return cells
+        return copy
     }
     function newCell(e, buttonNumber){
         e.preventDefault()
@@ -215,13 +219,12 @@ function Provider({children}){
         }
         focusTextElement(buttonNumber)
     }
-
-    function wantToPrint(cell){
-
-        if(cell.code.toLowerCase().includes(';nope')){
-            return false
-        }
-        return true
+    
+    function toggleCellRegs(e, buttonNumber){
+        e.preventDefault()
+        let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
+        copy[buttonNumber].isVisible = !copy[buttonNumber].isVisible
+        setCellsData(copy)
     }
 
     function copyStringToClipboard (str) {
@@ -240,7 +243,7 @@ function Provider({children}){
         let resText = ""
 
         for(let i=0; i<TotalCells; i++){
-            if(wantToPrint(CellsData[i]) && CellsData[i].code !== ""){
+            if(CellsData[i].isVisible && CellsData[i].code !== ""){
                 resText += CellsData[i].code + "\n\n"
                 console.log(CellsData[i].code)
             }
@@ -342,11 +345,13 @@ function Provider({children}){
                     <ContextNewCell.Provider value={newCell}>
                             <ContextDeleteCell.Provider value={deleteCell}>
                                 <ContextCopyToClipBoard.Provider value={copyToClipBoard}>
-                                    <ContextUpdateData.Provider value={updateCodeData}>
-                                        <ContextXMMRegisters.Provider value={getXMMRegisters}>
-                                            {children}
-                                        </ContextXMMRegisters.Provider>
-                                    </ContextUpdateData.Provider>
+                                    <ContextToggleCellRegs.Provider value={toggleCellRegs}>
+                                        <ContextUpdateData.Provider value={updateCodeData}>
+                                            <ContextXMMRegisters.Provider value={getXMMRegisters}>
+                                                {children}
+                                            </ContextXMMRegisters.Provider>
+                                        </ContextUpdateData.Provider>
+                                    </ContextToggleCellRegs.Provider>
                                 </ContextCopyToClipBoard.Provider>
                             </ContextDeleteCell.Provider>
                     </ContextNewCell.Provider>

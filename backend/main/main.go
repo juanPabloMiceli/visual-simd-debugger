@@ -34,7 +34,7 @@ const (
 	FILENAMELEN = 10
 
 	//MAXBYTES is the maximum bytes the asm file can use
-	MAXBYTES = 10240
+	MAXBYTES = 20480 //20KBytes
 )
 
 // FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
@@ -96,10 +96,10 @@ func response(w *http.ResponseWriter, obj interface{}) {
 	(*w).Write(responseJSON)
 }
 
-func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhandler.XMMHandler, cellIndex int, xmmFormat *cellshandler.XMMFormat) CellRegisters {
+func getRequestedRegisters(requests *cellshandler.XmmRequests, xmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) CellRegisters {
 	cellRegisters := CellRegisters{}
 
-	for _, request := range cellsData.Requests[cellIndex] {
+	for _, request := range *requests {
 		// fmt.Println("Request: ", request.PrintFormat)
 		if request.PrintFormat == "" {
 			request.PrintFormat = xmmFormat.DefaultPrintingFormat[request.XmmNumber]
@@ -115,20 +115,18 @@ func getRequestedRegisters(cellsData *cellshandler.CellsData, xmmHandler *xmmhan
 	return cellRegisters
 }
 
-func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, cellsData *cellshandler.CellsData, cellIndex int, xmmFormat *cellshandler.XMMFormat) CellRegisters {
+func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) CellRegisters {
 	cellRegisters := CellRegisters{}
 
-	if cellIndex > 0 {
-		for index := range oldXmmHandler.Xmm {
-			oldXmm := oldXmmHandler.Xmm[index]
-			newXmm := newXmmHandler.Xmm[index]
-			if !oldXmm.Equals(newXmm) {
-				xmmString := "XMM" + strconv.Itoa(index)
-				xmmData := XMMData{
-					XmmID:     xmmString,
-					XmmValues: newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
-				cellRegisters = append(cellRegisters, xmmData)
-			}
+	for index := range oldXmmHandler.Xmm {
+		oldXmm := oldXmmHandler.Xmm[index]
+		newXmm := newXmmHandler.Xmm[index]
+		if !oldXmm.Equals(newXmm) {
+			xmmString := "XMM" + strconv.Itoa(index)
+			xmmData := XMMData{
+				XmmID:     xmmString,
+				XmmValues: newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
+			cellRegisters = append(cellRegisters, xmmData)
 		}
 	}
 
@@ -176,7 +174,7 @@ func setDefaultPrintFormat(xmmFormat *cellshandler.XMMFormat, newPrintFormat str
 }
 
 func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int, xmmFormat *cellshandler.XMMFormat) {
-	r := regexp.MustCompile(`;(print|p)(?P<printFormat>\/(d|x|t|u))?(( |\t)+)?(?P<xmmID>xmm([0-9]|1[0-5])?)\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)`)
+	r := regexp.MustCompile(`(( |\t)+)?;(( |\t)+)?(print|p)(( |\t)+)?(?P<printFormat>\/(d|x|t|u))?(( |\t)+)?(?P<xmmID>xmm([0-9]|1[0-5])?)\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)`)
 	matches := r.FindAllStringSubmatch(cellsData.Data[cellIndex].Code, -1)
 
 	if len(matches) > 0 {
@@ -200,14 +198,12 @@ func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int, xmmForm
 
 			}
 		}
-
 	}
 
 }
 
 func getFPRegs(pid int, data *FPRegs) error {
-	sysPtrace := 101
-	_, _, errno := syscall.RawSyscall6(uintptr(sysPtrace),
+	_, _, errno := syscall.RawSyscall6(uintptr(syscall.SYS_PTRACE),
 		uintptr(syscall.PTRACE_GETFPREGS),
 		uintptr(pid),
 		uintptr(0),
@@ -255,7 +251,12 @@ func limitCPUTime(pid int, maxTime uint64) {
 
 func killProcess(pid int, err string) ResponseObj {
 	fmt.Println("Killing Process")
-	killErr := syscall.Kill(pid, syscall.SYS_KILL)
+	var ws syscall.WaitStatus
+	_, _, killErr := syscall.RawSyscall6(syscall.SYS_KILL,
+		uintptr(pid),
+		uintptr(syscall.SIGKILL),
+		0, 0, 0, 0)
+	syscall.Wait4(pid, &ws, syscall.WALL, nil)
 	if pidExists(pid) {
 		return ResponseObj{ConsoleOut: err + "\nCould not kill process: " + strconv.Itoa(pid) + "\nError: " + killErr.Error()}
 
@@ -268,35 +269,13 @@ func killProcess(pid int, err string) ResponseObj {
 func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandler.XMMFormat) ResponseObj {
 
 	res := ResponseObj{CellRegs: make([]CellRegisters, 0)}
-
 	cellIndex := 0
-
-	//Passing over data cell
-	res.CellRegs = append(res.CellRegs, CellRegisters{})
-	cellIndex++
 
 	oldXmmHandler, getErr := getXMMRegs(pid)
 	if getErr != nil {
 		return killProcess(pid, "Could not get XMM registers.")
 	}
-
 	var ws syscall.WaitStatus
-	execErr := syscall.PtraceCont(pid, 0)
-
-	if execErr != nil {
-		return killProcess(pid, execErr.Error())
-	}
-
-	_, waitErr := syscall.Wait4(pid, &ws, syscall.WALL, nil)
-
-	if waitErr != nil {
-		return killProcess(pid, waitErr.Error())
-
-	}
-
-	if !pidExists(pid) {
-		return killProcess(pid, "Something stopped the program.")
-	}
 
 	for cellIndex < len(cellsData.Data) {
 		newXmmHandler, getErr := getXMMRegs(pid)
@@ -304,9 +283,12 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 			return killProcess(pid, "Could not get XMM registers.")
 		}
 
-		updatePrintFormat(cellsData, cellIndex, xmmFormat)
-		requestedCellRegisters := getRequestedRegisters(cellsData, &newXmmHandler, cellIndex, xmmFormat)
-		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, cellsData, cellIndex, xmmFormat)
+		if cellIndex != 0 {
+			updatePrintFormat(cellsData, cellIndex, xmmFormat)
+
+		}
+		requestedCellRegisters := getRequestedRegisters(&cellsData.Requests[cellIndex], &newXmmHandler, xmmFormat)
+		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, xmmFormat)
 		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
 		oldXmmHandler = newXmmHandler
@@ -314,12 +296,15 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 
 		res.CellRegs = append(res.CellRegs, selectedCellRegisters)
 		cellIndex++
-		execErr = syscall.PtraceCont(pid, 0)
+		fmt.Println(cellIndex)
+
+		execErr := syscall.PtraceCont(pid, 0)
 		if execErr != nil {
 			return killProcess(pid, execErr.Error())
 		}
 
-		_, waitErr = syscall.Wait4(pid, &ws, syscall.WALL, nil)
+		_, waitErr := syscall.Wait4(pid, &ws, syscall.WALL, nil)
+
 		if waitErr != nil {
 			return killProcess(pid, waitErr.Error())
 		}
@@ -331,19 +316,16 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 
 	fmt.Printf("Exited: %v\n", ws.Exited())
 	fmt.Printf("Exited status: %v\n", ws.ExitStatus())
-	res.ConsoleOut = "Exited status: " + strconv.Itoa(ws.ExitStatus())
+
+	if pidExists(pid) {
+		aux := killProcess(pid, "Something went wrong, program did not reach the end.")
+		res.ConsoleOut = aux.ConsoleOut
+	} else {
+		res.ConsoleOut = "Exited status: " + strconv.Itoa(ws.ExitStatus())
+	}
 
 	return res
 }
-
-// func printLibraries(pid int) {
-// 	content, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/maps")
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	fmt.Println(string(content))
-// }
 
 func pidExists(pid int) bool {
 	_, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
@@ -506,19 +488,31 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	}
 	fileSize := fileInfo.Size()
 
-	if fileSize > MAXBYTES {
+	if fileSize > MAXBYTES/2 {
 		res := ResponseObj{ConsoleOut: "Text file must not be greater than 10Kb."}
 		deleteFiles(filepath, randomFile, &res)
 		response(&w, res)
 		return
 	}
 
+	// nasmCmd := exec.Command(execMap["minijail0"], "-p", "/bin/ps", "fax")
 	nasmCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/nasm.policy", execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", randomFile+".asm", "-o", randomFile+".o")
+	// nasmCmd := exec.Command(execMap["minijail0"], "-p", "-n", "-S", "../policies/nasm.policy", execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", "execDir/holaMundo.asm", "-o", "execDir/holaMundo.o")
+	// nasmCmd := exec.Command(execMap["minijail0"], "-P", "../stable-release/", "-n", "-p", "../stable-release/usr/bin/ls")
 
 	var stderr bytes.Buffer
-	nasmCmd.Stderr = &stderr
-	nasmErr := nasmCmd.Run()
 
+	nasmCmd.Stderr = &stderr
+
+	// nasmCmd.Stderr = os.Stderr
+	// nasmCmd.Stdin = os.Stdin
+	nasmCmd.Stdout = os.Stdout
+
+	nasmErr := nasmCmd.Run()
+	// nasmErr := nasmCmd.Start()
+	// fmt.Println(nasmCmd.Process.Pid)
+	// nasmCmd.Wait()
+	fmt.Println(nasmErr)
 	if nasmErr != nil || !fileExists(path.Join(filepath, randomFile+".o")) {
 		if stderr.String() == "" {
 			stderr.WriteString("NASM execution failed")
@@ -529,6 +523,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		response(&w, res)
 		return
 	}
+	//
 	fmt.Println("Program compiled")
 
 	// nasmPid := nasmCmd.Process.Pid
@@ -540,7 +535,10 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-nostdlib", "-static", "-o", randomFile, randomFile+".o")
 
-	linkingCmd.Stderr = &stderr
+	// linkingCmd.Stderr = os.Stderr
+	// linkingCmd.Stdin = os.Stdin
+	// linkingCmd.Stdout = os.Stdout
+	nasmCmd.Stderr = &stderr
 	linkingErr := linkingCmd.Run()
 
 	if linkingErr != nil || !fileExists(path.Join(filepath, randomFile)) {
@@ -621,13 +619,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// if optErr != nil {
-	// 	res := ResponseObj{ConsoleOut: optErr.Error()}
-	// 	deleteFiles(filepath, randomFile, &res)
-	// 	response(&w, res)
-	// 	return
-	// }
-
 	responseObj := cellsLoop(&cellsData, microjailPID, &xmmFormat)
 
 	runtime.UnlockOSThread()
@@ -643,4 +634,5 @@ func main() {
 	http.HandleFunc("/codeSave", codeSave)
 
 	http.ListenAndServe(":8080", nil)
+
 }

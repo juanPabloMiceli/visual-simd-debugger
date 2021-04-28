@@ -4,7 +4,7 @@ services:
     build:
       context: .
       network: host
-    image: juampi1998/visual-simd-backend
+    image: juampi1998/visual-simd-backend:latest
     ports:
       - 8080:8080
     security_opt:
@@ -15,7 +15,7 @@ services:
     build:
       context: .
       network: host
-    image: juampi1998/visual-simd-frontend
+    image: juampi1998/visual-simd-frontend:latest
     ports:
       - 3000:3000
   

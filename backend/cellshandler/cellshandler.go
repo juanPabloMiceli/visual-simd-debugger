@@ -10,16 +10,15 @@ import (
 
 //CellData is the data of the cell that is received from the frontend
 type CellData struct {
-	ID     int       `json:"id"`
-	Code   string    `json:"code"`
+	ID   int    `json:"id"`
+	Code string `json:"code"`
 }
 
-//CellsData has the data of every cell received from the frontend as well as the 
+//CellsData has the data of every cell received from the frontend as well as the
 //requests each cell has to ask
 type CellsData struct {
-	Data                  []CellData `json:"CellsData"`
-	Requests              []XmmRequests
-
+	Data     []CellData `json:"CellsData"`
+	Requests []XmmRequests
 }
 
 //XMMFormat contains the printing format for every XMM
@@ -42,12 +41,12 @@ type XmmRequests []XmmRequest
 //NewCellsData creates a new CellsData
 func NewCellsData() CellsData {
 	return CellsData{
-		Data:                  make([]CellData, 0),
-		Requests:              make([]XmmRequests, 0),
+		Data:     make([]CellData, 0),
+		Requests: make([]XmmRequests, 0),
 	}
 }
 
-func NewXMMFormat() XMMFormat{
+func NewXMMFormat() XMMFormat {
 	defaultDataFormat := make([]string, xmmhandler.XMMREGISTERS)
 	defaultPrintingFormat := make([]string, xmmhandler.XMMREGISTERS)
 
@@ -92,8 +91,8 @@ func (obj *CellsData) HandleCellsData(xmmFormat *XMMFormat) bool {
 
 func (obj *CellsData) hasCode() bool {
 	for i, data := range obj.Data {
-		if i > 0{
-			if len(data.Code) > 0{
+		if i > 0 {
+			if len(data.Code) > 0 {
 				return true
 			}
 		}
@@ -129,7 +128,7 @@ func XmmID2Number(xmmID string) int {
 }
 
 func (obj *CellsData) handleAllXmmRequests(xmmFormat *XMMFormat) {
-	r := regexp.MustCompile("(( |\\t)+)?;(( |\\t)+)?(print|p)(( |\\t)+)?(?P<printFormat>\\/(d|x|t|u))?(( |\\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)")
+	r := regexp.MustCompile(`(( |\t)+)?;(( |\t)+)?(print|p)(( |\t)+)?(?P<printFormat>\/(d|x|t|u))?(( |\t)+)?(?P<xmmID>xmm([0-9]|1[0-5]))\.(?P<dataFormat>v16_int8|v8_int16|v4_int32|v2_int64|v4_float|v2_double)`)
 	for cellIndex := range obj.Data {
 		obj.Requests = append(obj.Requests, make(XmmRequests, 0))
 		obj.handleCellXmmRequests(r, cellIndex, xmmFormat)
