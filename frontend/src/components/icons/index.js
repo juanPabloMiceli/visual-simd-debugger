@@ -3,5 +3,7 @@ import { faTrashAlt} from '@fortawesome/free-solid-svg-icons'
 import { faGithub } from '@fortawesome/free-brands-svg-icons'
 import { faEye} from '@fortawesome/free-solid-svg-icons'
 import { faEyeSlash}  from '@fortawesome/free-solid-svg-icons'
+import { faWindowClose }  from '@fortawesome/free-solid-svg-icons'
+import { faInfo }  from '@fortawesome/free-solid-svg-icons'
 
-library.add(faTrashAlt, faGithub, faEye, faEyeSlash)
+library.add(faTrashAlt, faGithub, faEye, faEyeSlash, faWindowClose, faInfo)

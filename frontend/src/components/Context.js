@@ -10,6 +10,7 @@ const ContextNewCellDown = React.createContext()
 const ContextDeleteCell = React.createContext()
 const ContextCopyToClipBoard = React.createContext()
 const ContextToggleCellRegs = React.createContext()
+const ContextToggleHelp = React.createContext()
 const ContextCleanCode = React.createContext()
 
 
@@ -54,6 +55,11 @@ export function useContextToggleCellRegs(){
     return useContext(ContextToggleCellRegs)
 }
 
+export function useContextToggleHelp(){
+    return useContext(ContextToggleHelp)
+}
+
+
 
 axios.defaults.headers.common = {
 	"Content-Type": "application/json"
@@ -74,6 +80,7 @@ function Provider({children}){
     const [CellsData, setCellsData] = useState([initCell(0)]);
     const [TotalCells, setTotalCells] = useState(1);
     const [ConsoleOutput, setConsoleOutput] = useState("");
+    const [HelpActive, setHelpActive] = useState(false)
 
     function initCell(_id){
         return {
@@ -166,6 +173,8 @@ function Provider({children}){
 
         return res
     }
+
+
     function submitCode(){
         let url = new URL(window.location.href)
         url.port = "8080"
@@ -187,8 +196,8 @@ function Provider({children}){
             }
         }) 
         .catch(error => {
-            setConsoleOutput(error) 
-            localStorage.setItem('consoleOutput', JSON.stringify(error))
+            setConsoleOutput(error.message) 
+            localStorage.setItem('consoleOutput', JSON.stringify(error.message))
         })
     }
 
@@ -245,6 +254,11 @@ function Provider({children}){
             localStorage.setItem('totalCells', JSON.stringify(TotalCells-1))
         }
         focusTextElement(buttonNumber)
+    }
+
+    function toggleHelp(e){
+        e.preventDefault()
+        setHelpActive(!HelpActive)
     }
 
     function toggleCellRegs(e, buttonNumber){
@@ -323,15 +337,18 @@ function Provider({children}){
     let VisualizerData = {
         CellsData: CellsData,
         TotalCells: TotalCells,
-        ConsoleOutput: ConsoleOutput
+        ConsoleOutput: ConsoleOutput,
+        HelpActive: HelpActive
     }
 
     document.onkeydown = checkKey
 
     function checkKey(event){
-        if(event.repeat){
-            return  
+        if(event.repeat) return  
+        if(event.ctrlKey && event.altKey && event.key.toLowerCase() === "h"){
+            toggleHelp(event)
         }
+        if(HelpActive) return
         let number;
         if(event.target.id){
             number =  parseInt(event.target.id.replace( /^\D+/g, ''));
@@ -383,11 +400,13 @@ function Provider({children}){
                             <ContextDeleteCell.Provider value={deleteCell}>
                                 <ContextCopyToClipBoard.Provider value={copyToClipBoard}>
                                     <ContextToggleCellRegs.Provider value={toggleCellRegs}>
-                                        <ContextUpdateData.Provider value={updateCodeData}>
-                                            <ContextXMMRegisters.Provider value={getXMMRegisters}>
-                                                {children}
-                                            </ContextXMMRegisters.Provider>
-                                        </ContextUpdateData.Provider>
+                                        <ContextToggleHelp.Provider value={toggleHelp}>
+                                            <ContextUpdateData.Provider value={updateCodeData}>
+                                                <ContextXMMRegisters.Provider value={getXMMRegisters}>
+                                                    {children}
+                                                </ContextXMMRegisters.Provider>
+                                            </ContextUpdateData.Provider>
+                                        </ContextToggleHelp.Provider>
                                     </ContextToggleCellRegs.Provider>
                                 </ContextCopyToClipBoard.Provider>
                             </ContextDeleteCell.Provider>

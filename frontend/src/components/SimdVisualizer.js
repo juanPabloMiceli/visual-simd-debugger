@@ -1,10 +1,12 @@
 import React from 'react';
 import Cell from './Cell'
-import { useContextData, useContextSubmit, useContextCopyToClipBoard, useContextCleanCode } from "./Context" 
+import { useContextData, useContextSubmit, useContextCopyToClipBoard, useContextCleanCode, useContextToggleHelp } from "./Context" 
 import TextOutput from './TextOutput';
 import DataCell from './DataCell'
 
 import GitHubCorners from '@uiw/react-github-corners';
+import HelpPopUp from './HelpPopUp';
+import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 
 
 function SimdVisualizer(){
@@ -13,6 +15,7 @@ function SimdVisualizer(){
     const copyToClipBoard = useContextCopyToClipBoard()
     const VisualizerData = useContextData()
     const cleanCode = useContextCleanCode()
+    const toggleHelp = useContextToggleHelp()
 
 
     console.log(VisualizerData)
@@ -36,8 +39,11 @@ function SimdVisualizer(){
                     href="https://gitlab.com/juampi_miceli/visual-simd-debugger"
                     target="_blank"
                 />
-                <div className="cleanCodeContainer">
+                <div className="topButtonsContainer">
                     <button className="btn-clean-code" onClick={cleanCode}>Clean Code</button>
+                    <button className="btn-help" onClick={toggleHelp}><FontAwesomeIcon icon="info" fixedWidth/></button>
+                    {/* <button className="btn-open-code" onClick={cleanCode}>Open Code</button>
+                    <button className="btn-new-code" onClick={cleanCode}>New Code</button> */}
                 </div>
                 <DataCell cellNumber={0} id={"dataCell"}/>
                 {CellComponents}
@@ -46,6 +52,7 @@ function SimdVisualizer(){
                     <button className="btn-submit" id="submitButton" onClick={submitCode}>Run Code</button>
                 </div>
                 <TextOutput/>
+                <HelpPopUp/>
             </div>
         
     );

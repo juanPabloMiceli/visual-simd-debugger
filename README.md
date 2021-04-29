@@ -22,6 +22,9 @@ El inicio de esta sección está marcado por la etiqueta `section .text`, es dec
 
 No se permite eliminar todas las celdas de texto, por lo cual siempre habrá como mínimo una celda en la sección de texto.
 
+### Código en C:
+Por motivos de seguridad este entorno no permite ningún llamado a funciones de la libc. Por hoy vas a tener que programar únicamente en assembler.
+
 ### Syscalls:
 
 Este entorno no acepta ninguna syscall. Si tratas de ejecutar cualquiera de estas el programa va a terminar.
@@ -90,6 +93,9 @@ El botón "copy to clipboard" hace exactamente lo que pensás. Copia todo el có
 
 Como limpiar el código de todas las celdas a la vez es medio incómodo, se puede apretar el botón `Clean Code` para realizar esta acción. **La misma no se puede deshacer**, por lo cual se debe confirmar el uso de este botón mediante un pop-up.
 
+### Esconder registros:
+
+Para esconder registros que no se quieran imprimir hay 2 alternativas: la primera es usar el comando `hide` que se explica en la sección de comandos, este comando nos deja esconder registros individualmente. Si lo que se quiere hacer es esconder todos los registros provenientes de una celda específica se puede presionar el botón con forma de ojo que se encuentra arriba a la derecha en la celda.
 
 
 ### Shortcuts de teclado:

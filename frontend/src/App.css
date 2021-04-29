@@ -54,20 +54,14 @@ body{
   box-sizing: border-box;
 }
 
-.cleanCodeContainer{
+.topButtonsContainer{
   position: relative;
   margin-left: 5vw;
   margin-right: 5vw;
   min-width: 90vw;
   min-height: 5vh;
-  /* display: flex;
-  justify-content: center;
-  align-items: center; */
 
 }
-
-
-
 
 .btn-clean-code{
   bottom: 0;
@@ -77,6 +71,163 @@ body{
 
 }
 
+.btn-help{
+  bottom: 0;
+  position: absolute;
+  padding: 8px 6px;
+  left: 45vw;
+  transform: translateX(-50%);
+}
+
+.help-popup{
+  display: block;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  min-width: 600px;
+  max-width: 600px;
+  min-height: 80vh;
+  max-height: 80vh;
+  overflow: scroll;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  z-index: 1000;
+}
+
+.help-popup .btn-close-help{
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.commandsContainer h2{
+  text-align: center;
+}
+
+.commandsContainer{
+  background-color: #ddd;
+  min-height: 40vh;
+  margin-top: 0;
+  padding-top: 4px;
+  margin-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.commandsContainer p{
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+.commandsContainer h3{
+  padding-left: 22px;
+}
+
+.commandsContainer #commandsTitle{
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+  background-color: #444;
+  color: #fff;
+  padding: 8px;
+  border: 1px solid #ddd;
+  font-weight: bold;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+#printTitle{
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+  font-size: larger;
+  font-weight: bold;
+}
+
+.commandsContainer #examplePrint{
+  display: inline-block;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  padding: 12px;
+  border: 2px solid #000;
+  border-radius: 10px;
+  font-size: larger;
+  margin: 0;
+}
+
+
+#shortcuts{
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;  
+}
+
+#shortcuts th, #shortcuts td{
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+#shortcuts tr:nth-child(even){background-color: #f2f2f2;}
+
+#shortcuts th{
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: center;
+  background-color: #444;
+  color: #fff
+}
+
+#shortcuts .definition{
+  text-align: right;
+  width: 50%;
+}
+
+#shortcuts .hotkey{
+  text-align: left;
+  width: 50%;
+}
+
+kbd {
+  font-family: monospace;
+
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  background-color: #f9f9f9;
+  color: #333;
+  margin: .25em .1em;
+  padding: .1em .4em;
+  text-shadow: 0 1px 0 #fff;
+
+}
+
+
+.overlay{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+}
+
+/* .btn-open-code{
+  bottom: 0;
+  position: absolute;
+  padding: 8px 6px;
+  left: 45vw;
+  /* transform: translateX(-100%); */
+/* } */
+
+.btn-new-code{
+  bottom: 0;
+  position: absolute;
+  padding: 8px 6px;
+  left: 45vw;
+  transform: translateX(-100%);
+} */
 
 .buttons{
   margin-left: auto;
@@ -89,7 +240,7 @@ body{
 #showCellRegsButton{
   position: absolute;
   padding: 6px 8px;
-  margin-left: 90vw;
+  margin-left: 95vw;
   transform: translate(-200%, -50%);
   z-index: 1;
 }
@@ -97,7 +248,7 @@ body{
 #delCellButton{
   position: absolute;
   padding: 6px 8px;
-  margin-left: 90vw;
+  margin-left: 95vw;
   transform: translate(-100%, -50%);
   z-index: 1;
 }
