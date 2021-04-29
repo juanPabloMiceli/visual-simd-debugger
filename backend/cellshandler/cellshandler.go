@@ -17,9 +17,12 @@ type CellData struct {
 //CellsData has the data of every cell received from the frontend as well as the
 //requests each cell has to ask
 type CellsData struct {
-	Data     []CellData `json:"CellsData"`
-	Requests []XmmRequests
+	Data       []CellData `json:"CellsData"`
+	Requests   []XmmRequests
+	HiddenRegs []HiddenInCell
 }
+
+type HiddenInCell []int
 
 //XMMFormat contains the printing format for every XMM
 type XMMFormat struct {
@@ -76,6 +79,7 @@ func (obj *CellsData) CellsData2SourceCode() string {
 //HandleCellsData edit cells code content such that the cells to source code convertion is direct
 func (obj *CellsData) HandleCellsData(xmmFormat *XMMFormat) bool {
 	obj.toLowerCase()
+	obj.getAllHiddenRegs()
 	obj.handleAllXmmRequests(xmmFormat)
 	if !obj.hasCode() {
 		return true
@@ -87,6 +91,39 @@ func (obj *CellsData) HandleCellsData(xmmFormat *XMMFormat) bool {
 	obj.addExitSyscall()
 
 	return false
+}
+
+func (obj *CellsData) getAllHiddenRegs() {
+	r := regexp.MustCompile(`(( |\t)+)?;(( |\t)+)?hide(( |\t)+)?(xmm(?P<xmmNumber>[0-9]|1[0-5]))\b`)
+	for cellIndex := range obj.Data {
+		obj.HiddenRegs = append(obj.HiddenRegs, make(HiddenInCell, 0))
+		obj.getCellHiddenRegs(r, cellIndex)
+	}
+
+}
+
+func (obj *CellsData) getCellHiddenRegs(r *regexp.Regexp, cellIndex int) {
+	matches := r.FindAllStringSubmatch(obj.Data[cellIndex].Code, -1)
+	for _, match := range matches {
+		obj.getHiddenReg(r, match, cellIndex)
+	}
+}
+
+func containsInt(elem int, s []int) bool {
+	for _, current := range s {
+		if current == elem {
+			return true
+		}
+	}
+	return false
+}
+
+func (obj *CellsData) getHiddenReg(r *regexp.Regexp, match []string, cellIndex int) {
+	values := GetGroupValues(r, match)
+	xmmNumber, _ := strconv.Atoi(values["xmmNumber"])
+	if !containsInt(xmmNumber, obj.HiddenRegs[cellIndex]) {
+		obj.HiddenRegs[cellIndex] = append(obj.HiddenRegs[cellIndex], xmmNumber)
+	}
 }
 
 func (obj *CellsData) hasCode() bool {
@@ -155,16 +192,10 @@ func (obj *CellsData) handleXmmRequest(r *regexp.Regexp, match []string, cellInd
 	xmmRequest.PrintFormat = values["printFormat"]
 	xmmFormat.DefaultDataFormat[xmmRequest.XmmNumber] = xmmRequest.DataFormat
 
-	obj.Requests[cellIndex] = append(obj.Requests[cellIndex], xmmRequest)
-}
-
-func containsAny(original string, subs ...string) bool {
-	for _, sub := range subs {
-		if strings.Contains(original, sub) {
-			return true
-		}
+	if !containsInt(xmmRequest.XmmNumber, obj.HiddenRegs[cellIndex]) {
+		obj.Requests[cellIndex] = append(obj.Requests[cellIndex], xmmRequest)
 	}
-	return false
+
 }
 
 func (obj *CellsData) addDataSection() {

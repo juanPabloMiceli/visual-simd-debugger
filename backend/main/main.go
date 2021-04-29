@@ -115,18 +115,29 @@ func getRequestedRegisters(requests *cellshandler.XmmRequests, xmmHandler *xmmha
 	return cellRegisters
 }
 
-func getChangedRegisters(oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) CellRegisters {
+func containsInt(elem int, s []int) bool {
+	for _, current := range s {
+		if current == elem {
+			return true
+		}
+	}
+	return false
+}
+
+func getChangedRegisters(hiddenRegs *cellshandler.HiddenInCell, oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) CellRegisters {
 	cellRegisters := CellRegisters{}
 
 	for index := range oldXmmHandler.Xmm {
-		oldXmm := oldXmmHandler.Xmm[index]
-		newXmm := newXmmHandler.Xmm[index]
-		if !oldXmm.Equals(newXmm) {
-			xmmString := "XMM" + strconv.Itoa(index)
-			xmmData := XMMData{
-				XmmID:     xmmString,
-				XmmValues: newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
-			cellRegisters = append(cellRegisters, xmmData)
+		if !containsInt(index, *hiddenRegs) {
+			oldXmm := oldXmmHandler.Xmm[index]
+			newXmm := newXmmHandler.Xmm[index]
+			if !oldXmm.Equals(newXmm) {
+				xmmString := "XMM" + strconv.Itoa(index)
+				xmmData := XMMData{
+					XmmID:     xmmString,
+					XmmValues: newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
+				cellRegisters = append(cellRegisters, xmmData)
+			}
 		}
 	}
 
@@ -288,7 +299,7 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 
 		}
 		requestedCellRegisters := getRequestedRegisters(&cellsData.Requests[cellIndex], &newXmmHandler, xmmFormat)
-		changedCellRegisters := getChangedRegisters(&oldXmmHandler, &newXmmHandler, xmmFormat)
+		changedCellRegisters := getChangedRegisters(&cellsData.HiddenRegs[cellIndex], &oldXmmHandler, &newXmmHandler, xmmFormat)
 		selectedCellRegisters := joinWithPriority(&requestedCellRegisters, &changedCellRegisters)
 
 		oldXmmHandler = newXmmHandler

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import React, {useContext, useState} from 'react'
+import React, {useContext, useEffect, useState} from 'react'
 
 const ContextData  = React.createContext()
 const ContextUpdateData = React.createContext()
@@ -71,8 +71,8 @@ function cleanOutput(cellsData){
 
 function Provider({children}){
     
-    const [CellsData, setCellsData] = useState(initExample());
-    const [TotalCells, setTotalCells] = useState(8);
+    const [CellsData, setCellsData] = useState([initCell(0)]);
+    const [TotalCells, setTotalCells] = useState(1);
     const [ConsoleOutput, setConsoleOutput] = useState("");
 
     function initCell(_id){
@@ -83,6 +83,25 @@ function Provider({children}){
             isVisible: true
         }
     }
+
+    useEffect(() =>{
+        console.log(localStorage.getItem('visualizerData'))
+        if(localStorage.getItem('cellsData') && localStorage.getItem('totalCells') && localStorage.getItem('consoleOutput')){
+            setCellsData(JSON.parse(localStorage.getItem('cellsData')))
+            setTotalCells(JSON.parse(localStorage.getItem('totalCells')))
+            setConsoleOutput(JSON.parse(localStorage.getItem('consoleOutput')))
+        }else{
+            setCellsData(initExample())
+            localStorage.setItem('cellsData', JSON.stringify(initExample()))
+            setTotalCells(initExample().length)
+            localStorage.setItem('totalCells', JSON.stringify(initExample().length))
+            setConsoleOutput("")
+            localStorage.setItem('consoleOutput', JSON.stringify(""))
+
+        }
+        
+    },[])
+    
 
     function initExample() {
 
@@ -155,18 +174,21 @@ function Provider({children}){
         
 
         setCellsData(cleanOutput(CellsData))
+        localStorage.setItem('cellsData', JSON.stringify(cleanOutput(CellsData)))
         axios.post(url + "codeSave", JSON.stringify({
             CellsData: requestObj
         }))
         .then(response =>{
             console.log(response)
             setConsoleOutput(response.data.ConsoleOut) 
+            localStorage.setItem('consoleOutput', JSON.stringify(response.data.ConsoleOut))
             if(response.data.CellRegs){
                 updateXMMData(response.data.CellRegs) 
             }
         }) 
         .catch(error => {
             setConsoleOutput(error) 
+            localStorage.setItem('consoleOutput', JSON.stringify(error))
         })
     }
 
@@ -188,8 +210,11 @@ function Provider({children}){
 
         copy = fixIndexing(copy)
         setCellsData(copy)
+        localStorage.setItem('cellsData', JSON.stringify(copy))
 
         setTotalCells(TotalCells + 1)
+        localStorage.setItem('totalCells', JSON.stringify(TotalCells+1))
+
         let ca = document.getElementById("code"+buttonNumber.toString())
         if(ca){
             ca.focus()
@@ -215,16 +240,19 @@ function Provider({children}){
             copy.splice(buttonNumber, 1)
             copy = fixIndexing(copy)
             setCellsData(copy)
+            localStorage.setItem('cellsData', JSON.stringify(copy))
             setTotalCells(TotalCells - 1)
+            localStorage.setItem('totalCells', JSON.stringify(TotalCells-1))
         }
         focusTextElement(buttonNumber)
     }
-    
+
     function toggleCellRegs(e, buttonNumber){
         e.preventDefault()
         let copy = JSON.parse(JSON.stringify(CellsData))//This is the only way of doing a depth copy
         copy[buttonNumber].isVisible = !copy[buttonNumber].isVisible
         setCellsData(copy)
+        localStorage.setItem('cellsData', JSON.stringify(copy))
     }
 
     function copyStringToClipboard (str) {
@@ -262,7 +290,9 @@ function Provider({children}){
             e.preventDefault()
             let copy = [initCell(0), initCell(1)]
             setCellsData(copy)
+            localStorage.setItem('cellsData', JSON.stringify(copy))
             setTotalCells(2)
+            localStorage.setItem('totalCells', JSON.stringify(2))
         }
         
     }
@@ -273,6 +303,7 @@ function Provider({children}){
         }
 
         setCellsData(copy)
+        localStorage.setItem('cellsData', JSON.stringify(copy))
 
     }
 
@@ -280,6 +311,7 @@ function Provider({children}){
         let copy = JSON.parse(JSON.stringify(CellsData))
         copy[cellId].code = newCode
         setCellsData(copy)
+        localStorage.setItem('cellsData', JSON.stringify(copy))
     }
 
     function getXMMRegisters(cellId){
@@ -335,6 +367,11 @@ function Provider({children}){
             }
         }
     }
+
+    //Saves current code state before window is closed
+    // window.onbeforeunload = function(){
+    //     localStorage.setItem('visualizerData', JSON.stringify(VisualizerData))
+    // }
 
    
 
