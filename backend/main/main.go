@@ -368,27 +368,13 @@ func deleteFile(filePath string) error {
 
 }
 
-//deleteFiles randomFolder 3 files created "output.asm", "output.o" and "output"
-//So that next request is clean
 func deleteFiles(folderPath string, res *ResponseObj) {
 	err := os.RemoveAll(folderPath)
-	// err1 := deleteFile(path.Join(filesPath, fileName))
-	// err2 := deleteFile(path.Join(filesPath, fileName+".o"))
-	// err3 := deleteFile(path.Join(filesPath, fileName+".asm"))
 
 	if err != nil {
 		fmt.Printf("Could not remove folder %s. Error: %s\n", folderPath, err.Error())
 		res.ConsoleOut += "\nCould not remove your files from server, please notify. Error: " + err.Error()
 	}
-	// if err1 != nil {
-	// 	res.ConsoleOut += "\nCould not remove exeecutable from server. Error: " + err1.Error()
-	// }
-	// if err2 != nil {
-	// 	res.ConsoleOut += "\nCould not remove binary from server. Error: " + err2.Error()
-	// }
-	// if err3 != nil {
-	// 	res.ConsoleOut += "\nCould not remove text file from server. Error: " + err3.Error()
-	// }
 }
 
 func fileExists(filePath string) bool {
