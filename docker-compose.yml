@@ -9,6 +9,7 @@ services:
       - 8080:8080
     security_opt:
       - seccomp:unconfined
+    privileged: true
     
 
   frontend:

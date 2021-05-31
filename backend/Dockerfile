@@ -1,7 +1,7 @@
 #Build from go/src/
 
 #To build:
-#sudo docker build ./ -t visual-simd-back
+#sudo docker build ./ -t visual-simd-backend
 
 #To run:
 #sudo docker run -d --rm --name v-simd-back --network host visual-simd-back
@@ -15,11 +15,13 @@ FROM golang:latest as builder
 WORKDIR /
 RUN \
 apt-get update && \
+apt-get install -y apt-utils && \
 apt-get install nasm && \
 apt-get install -y libcap-dev && \ 
 apt-get install -y git && \
 apt-get install -y libseccomp-dev && \
-git clone https://android.googlesource.com/platform/external/minijail ./minijail
+git clone https://android.googlesource.com/platform/external/minijail ./minijail && \
+mkdir clients && \
 
 #Installing minijail
 WORKDIR /minijail

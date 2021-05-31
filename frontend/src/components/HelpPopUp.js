@@ -35,6 +35,10 @@ let explanation = (<div className='commandsContainer' align='justify'><h2>Introd
 <h3>Sección de texto:</h3>
 <p>El inicio de esta sección está marcado por la etiqueta <kbd>section .text</kbd>, es decir que todo el texto que esté en las celdas debajo de esta etiqueta será considerado código.</p>
 <p>No se permite eliminar todas las celdas de texto, por lo cual siempre habrá como mínimo una celda en la sección de texto.</p>
+<h3>Impresión de registros:</h3>
+<p>Hay 2 formas de que se imprima un registro. La primera es si se solicita la impresión con el comando <kbd>;print</kbd> que se muestra en la sección de comandos. Además se imprimirán todos los registros cuyo valor al terminar la celda sea distinto al valor que tenía al comienzo de la misma. Es decir, si en el medio de una celda modificas XMM0, pero antes de que termine le devolvés su valor original, la misma no se va a imprimir.</p>
+<h3>Esconder registros:</h3>
+<p>Para esconder registros que no se quieran imprimir hay 2 alternativas: la primera es usar el comando <kbd>hide</kbd> que se explica en la sección de comandos, este comando nos deja esconder registros individualmente. Si lo que se quiere hacer es esconder todos los registros provenientes de una celda específica se puede presionar el botón con forma de ojo que se encuentra arriba a la derecha en la celda.</p>
 <h3>Código en C:</h3>
 <p>Por motivos de seguridad este entorno no permite ningún llamado a funciones de la <kbd>libc</kbd>. Por hoy vas a tener que programar únicamente en assembler.</p>
 <h3>Syscalls:</h3>
@@ -46,8 +50,6 @@ Para eliminar una celda es tan sencillo como presionar el botón con forma de ta
 <p>El botón <kbd>copy to clipboard</kbd> hace exactamente lo que pensás. Copia todo el código que haya en las celdas al porta papeles para que lo puedas pegar cómodamente en el assembler. Si no querés que alguna celda se copie al assembler podés apretar el botón con forma de ojo arriba a la derecha de la celda.</p>
 <h3>Limpiar código:</h3>
 <p>Como limpiar el código de todas las celdas a la vez es medio incómodo, se puede apretar el botón <kbd>Clean Code</kbd> para realizar esta acción. <strong>La misma no se puede deshacer</strong>, por lo cual se debe confirmar el uso de este botón mediante un pop-up.</p>
-<h3>Esconder registros:</h3>
-<p>Para esconder registros que no se quieran imprimir hay 2 alternativas: la primera es usar el comando <kbd>hide</kbd> que se explica en la sección de comandos, este comando nos deja esconder registros individualmente. Si lo que se quiere hacer es esconder todos los registros provenientes de una celda específica se puede presionar el botón con forma de ojo que se encuentra arriba a la derecha en la celda.</p>
 <h3>Guardado automático:</h3>
 <p>Está activado el guardado automático, es decir que todo cambio que se realice en la página se guardará en caso de cerrar y volver a abrir el navegador. <span style={{fontWeight:'bold'}}>El guardado automático funciona para una sola pestaña a la vez.</span> Si se está trabajando con 2 pestañas a la vez y se reinicia una pestaña, los cambios conservados van a ser los de la última pestaña modificada. <span style={{fontWeight:'bold'}}>Se recomienda fuertemente trabajar con una pestaña a la vez.</span> Si se quiere recuperar el ejemplo inicial se debe limpiar el <kbd>localStorage</kbd> del navegador. Esto debería ser modificado en un futuro.</p>
 </div>)
@@ -123,11 +125,11 @@ let shortcutsTable = (<table id="shortcuts">
     </tr>
     <tr>
         <td className='definition'>Moverse a la celda de abajo</td>
-        <td className='hotkey'><span><kbd>Alt</kbd>+<kbd>ArrowDown</kbd></span></td>
+        <td className='hotkey'><span><kbd>Alt</kbd>+<kbd>ArrowDown</kbd> or <kbd>PgDn</kbd> </span></td>
     </tr>
     <tr>
         <td className='definition'>Moverse a la celda de arriba</td>
-        <td className='hotkey'><span><kbd>Alt</kbd>+<kbd>ArrowUp</kbd></span></td>
+        <td className='hotkey'><span><kbd>Alt</kbd>+<kbd>ArrowUp</kbd> or <kbd>PgUp</kbd> </span></td>
     </tr>
 </tbody>
 </table>)

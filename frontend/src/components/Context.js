@@ -1,5 +1,6 @@
 import axios from 'axios'
-import React, {useContext, useEffect, useState} from 'react'
+import React, {useContext, useEffect, useState, useCallback} from 'react'
+import * as HotKeys from './HotKeys'
 
 const ContextData  = React.createContext()
 const ContextUpdateData = React.createContext()
@@ -91,27 +92,7 @@ function Provider({children}){
         }
     }
 
-    useEffect(() =>{
-        console.log(localStorage.getItem('visualizerData'))
-        if(localStorage.getItem('cellsData') && localStorage.getItem('totalCells') && localStorage.getItem('consoleOutput')){
-            setCellsData(JSON.parse(localStorage.getItem('cellsData')))
-            setTotalCells(JSON.parse(localStorage.getItem('totalCells')))
-            setConsoleOutput(JSON.parse(localStorage.getItem('consoleOutput')))
-        }else{
-            setCellsData(initExample())
-            localStorage.setItem('cellsData', JSON.stringify(initExample()))
-            setTotalCells(initExample().length)
-            localStorage.setItem('totalCells', JSON.stringify(initExample().length))
-            setConsoleOutput("")
-            localStorage.setItem('consoleOutput', JSON.stringify(""))
-
-        }
-        
-    },[])
-    
-
-    function initExample() {
-
+    const initExample = useCallback(() => {
         let cellsData = []
 
         for(let i = 0; i < 8; i++){
@@ -159,8 +140,29 @@ function Provider({children}){
         cellsData[7].code += "pshufb xmm1, xmm0"
 
         return cellsData
+      }, [])
+
+    useEffect(() =>{
+        console.log(localStorage.getItem('visualizerData'))
+        if(localStorage.getItem('cellsData') && localStorage.getItem('totalCells') && localStorage.getItem('consoleOutput')){
+            setCellsData(JSON.parse(localStorage.getItem('cellsData')))
+            setTotalCells(JSON.parse(localStorage.getItem('totalCells')))
+            setConsoleOutput(JSON.parse(localStorage.getItem('consoleOutput')))
+        }else{
+            let auxData = initExample()
+            setCellsData(auxData)
+            localStorage.setItem('cellsData', JSON.stringify(auxData))
+            setTotalCells(auxData.length)
+            localStorage.setItem('totalCells', JSON.stringify(auxData.length))
+            setConsoleOutput("")
+            localStorage.setItem('consoleOutput', JSON.stringify(""))
+
+        }
         
-    }
+    },[initExample])
+    
+    
+
 
     function getRequestObj(cellsData){
         let res = []
@@ -353,34 +355,40 @@ function Provider({children}){
         if(event.target.id){
             number =  parseInt(event.target.id.replace( /^\D+/g, ''));
         }
-        if(event.key === "Enter" && event.ctrlKey){//SubmitCode
+        if(HotKeys.submitCode(event)){//SubmitCode
             submitCode(event)
         }
         if(event.target.tagName === "TEXTAREA"){
-            if(event.key === "ArrowDown" && event.ctrlKey){//NewCellUp
+            if(HotKeys.newCellBelow(event)){//NewCellDown
                 newCell(event, number+1)
             }
-            if(event.key === "ArrowUp" && event.ctrlKey){//NewCellDown
+            if(HotKeys.newCellAbove(event)){//NewCellUp
                 newCell(event, number)
             }
-            if(event.key.toLowerCase() === "d" && event.ctrlKey && event.altKey){//DeleteCurrentCell
+            if(HotKeys.deleteCell(event)){//DeleteCurrentCell
                 if(number !== "0"){//Won't delete data cell
                     deleteCell(event, number)
                 }
             }
-            if(event.key === "ArrowUp" && event.altKey){//SelectCellAbove
+            if(HotKeys.moveUp(event)){//SelectCellAbove
                 focusTextElement(number-1)
             }
-            if(event.key === "ArrowDown" && event.altKey){//SelectCellBelow
+            if(HotKeys.moveDown(event)){//SelectCellBelow
                 focusTextElement(number+1)
             }
         }
         else{
-            if(event.key === "ArrowDown" && event.ctrlKey){//NewCellAtBeginning
+            if(HotKeys.newCellBelow(event)){//NewCellAtEnd
                 newCell(event, VisualizerData.TotalCells)
             }
-            if(event.key === "ArrowUp" && event.ctrlKey){//NewCellAtEnd
+            if(HotKeys.newCellAbove(event)){//NewCellAtBeginning
                 newCell(event, 1)
+            }
+            if(HotKeys.moveUp(event)){//SelectLastCell
+                focusTextElement(VisualizerData.TotalCells-1)
+            }
+            if(HotKeys.moveDown(event)){//SelectFirstCell
+                focusTextElement(0)
             }
         }
     }

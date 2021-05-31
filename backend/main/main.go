@@ -34,7 +34,7 @@ const (
 	FILENAMELEN = 10
 
 	//MAXBYTES is the maximum bytes the asm file can use
-	MAXBYTES = 20480 //20KBytes
+	MAXBYTES = 30720 //30KBytes
 )
 
 // FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
@@ -69,6 +69,20 @@ func (cellRegs *CellRegisters) Contains(newXmmData *XMMData) bool {
 			return true
 		}
 	}
+	return false
+}
+
+//Estoy adentro de docker?
+func isRunningInDockerContainer() bool {
+	// docker creates a .dockerenv file at the root
+	// of the directory tree inside the container.
+	// if this file exists then the viewer is running
+	// from inside a container so return true
+
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+
 	return false
 }
 
@@ -354,23 +368,27 @@ func deleteFile(filePath string) error {
 
 }
 
-//deleteFiles removes the 3 files created "output.asm", "output.o" and "output"
+//deleteFiles randomFolder 3 files created "output.asm", "output.o" and "output"
 //So that next request is clean
-func deleteFiles(filesPath string, fileName string, res *ResponseObj) {
+func deleteFiles(folderPath string, res *ResponseObj) {
+	err := os.RemoveAll(folderPath)
+	// err1 := deleteFile(path.Join(filesPath, fileName))
+	// err2 := deleteFile(path.Join(filesPath, fileName+".o"))
+	// err3 := deleteFile(path.Join(filesPath, fileName+".asm"))
 
-	err1 := deleteFile(path.Join(filesPath, fileName))
-	err2 := deleteFile(path.Join(filesPath, fileName+".o"))
-	err3 := deleteFile(path.Join(filesPath, fileName+".asm"))
-
-	if err1 != nil {
-		res.ConsoleOut += "\nCould not remove exeecutable from server. Error: " + err1.Error()
+	if err != nil {
+		fmt.Printf("Could not remove folder %s. Error: %s\n", folderPath, err.Error())
+		res.ConsoleOut += "\nCould not remove your files from server, please notify. Error: " + err.Error()
 	}
-	if err2 != nil {
-		res.ConsoleOut += "\nCould not remove binary from server. Error: " + err2.Error()
-	}
-	if err3 != nil {
-		res.ConsoleOut += "\nCould not remove text file from server. Error: " + err3.Error()
-	}
+	// if err1 != nil {
+	// 	res.ConsoleOut += "\nCould not remove exeecutable from server. Error: " + err1.Error()
+	// }
+	// if err2 != nil {
+	// 	res.ConsoleOut += "\nCould not remove binary from server. Error: " + err2.Error()
+	// }
+	// if err3 != nil {
+	// 	res.ConsoleOut += "\nCould not remove text file from server. Error: " + err3.Error()
+	// }
 }
 
 func fileExists(filePath string) bool {
@@ -440,15 +458,6 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	limitFileSize(syscall.Getpid(), MAXBYTES)
 
-	_, filename, _, ok := runtime.Caller(0)
-
-	if !ok {
-		response(&w, ResponseObj{ConsoleOut: "Could't find server path"})
-		return
-	}
-
-	filepath := path.Dir(filename)
-	//Deleting files just in case previous execution failed to do that
 	enableCors(&w)
 
 	printJSONInput(req)
@@ -478,102 +487,225 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	randomFile, randErr := randomString(FILENAMELEN)
+	randomID, randErr := randomString(FILENAMELEN)
 
 	if randErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't create file name properly."})
+		response(&w, ResponseObj{ConsoleOut: "Could't create file name properly. (Server error please notify)"})
+		fmt.Println("Error creating random file: ", randErr)
 		return
 	}
 
-	randomFile = "execDir/" + randomFile
-
+	randomFolder := path.Join("/clients", randomID) //Cada usuario tiene una carpeta propia lo cual le va a dar aislamiento
+	randomFile := path.Join(randomFolder, randomID) //Cada usuario tiene una carpeta propia lo cual le va a dar aislamiento
+	os.Mkdir(randomFolder, os.FileMode(0777))
 	fileErr := ioutil.WriteFile(randomFile+".asm", []byte(fileText), 0644)
+
 	if fileErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't create file properly. Maybe the file is greater than 10Kb."})
+		response(&w, ResponseObj{ConsoleOut: "Could't create file properly. Maybe the file is greater than 30Kb."})
+		fmt.Println("Error creating asm file. Maybe the file is greater than 30Kb. Error: ", fileErr)
 		return
 	}
 
 	fileInfo, newFileErr := os.Stat(randomFile + ".asm")
 	if newFileErr != nil {
+		fmt.Println("Error obtaining file stats. Error: ", newFileErr)
 		panic(newFileErr)
 	}
 	fileSize := fileInfo.Size()
 
-	if fileSize > MAXBYTES/2 {
-		res := ResponseObj{ConsoleOut: "Text file must not be greater than 10Kb."}
-		deleteFiles(filepath, randomFile, &res)
+	if fileSize > MAXBYTES {
+		res := ResponseObj{ConsoleOut: "Text file must not be greater than 30Kb."}
+		fmt.Println("File is larger than 30Kb. Aborting.")
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
 
-	// nasmCmd := exec.Command(execMap["minijail0"], "-p", "/bin/ps", "fax")
-	nasmCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/nasm.policy", execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", randomFile+".asm", "-o", randomFile+".o")
-	// nasmCmd := exec.Command(execMap["minijail0"], "-p", "-n", "-S", "../policies/nasm.policy", execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", "execDir/holaMundo.asm", "-o", "execDir/holaMundo.o")
-	// nasmCmd := exec.Command(execMap["minijail0"], "-P", "../stable-release/", "-n", "-p", "../stable-release/usr/bin/ls")
+	/*
+		////////////////////////////////////////////////////////
+		///////////inicio codigo para informe///////////////////
+		////////////////////////////////////////////////////////
+
+		//Empezamos corriendo PS sin namespace
+		fmt.Println("")
+		fmt.Println("=============================================================")
+		fmt.Println("=Procesos visibles para NASM/LD sin aplicar ningun namespace=")
+		fmt.Println("=============================================================")
+		fmt.Println("$ ps -aux")
+		informeCmd := exec.Command("/bin/ps", "-aux") //Ejecutamos PS
+
+		informeCmd.Stdout = os.Stdout
+		informeErr := informeCmd.Run()
+		if informeErr != nil {
+			fmt.Println("Error: ", informeErr)
+		}
+
+		//Ahora corremos findmnt sin namespace
+		fmt.Println("")
+		fmt.Println("================================================================")
+		fmt.Println("=Filesystems visibles para NASM/LD sin aplicar ningun namespace=")
+		fmt.Println("================================================================")
+		fmt.Println("$ findmnt --output TARGET,SOURCE,VFS-OPTIONS")
+
+		informeCmd = exec.Command("/bin/findmnt", "--output", "TARGET,SOURCE,VFS-OPTIONS") //Ejecutamos findmnt
+
+		informeCmd.Stdout = os.Stdout
+		informeErr = informeCmd.Run()
+		if informeErr != nil {
+			fmt.Println("Error: ", informeErr)
+		}
+
+		//Corremos PS con el namespace
+		fmt.Println("")
+		fmt.Println("===================================================================================")
+		fmt.Println("=Procesos visibles para NASM/LD luego de aplicar minijail con PID y VFS namespaces=")
+		fmt.Println("===================================================================================")
+		fmt.Println("$ ps -aux")
+		informeCmd = exec.Command(execMap["minijail0"], //Path a minijail
+			"-p",               //PID namespace
+			"-v",               //Vamos a crear un nuevo VFS
+			"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
+			"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente con permiso de escritura
+			"-b", "/bin/ps", //Bindiamos el binario de PS
+			"-b", "/proc", //Bindiamos /proc porque PS lo necesita
+			"-r",              //Remonta /proc a readonly
+			"/bin/ps", "-aux") //Ejecutamos PS
+
+		informeCmd.Stdout = os.Stdout
+		informeErr = informeCmd.Run()
+		if informeErr != nil {
+			fmt.Println("Error: ", informeErr)
+		}
+
+		//Corremos findmnt con el namespace
+		fmt.Println("")
+		fmt.Println("======================================================================================")
+		fmt.Println("=Filesystems visibles para NASM/LD luego de aplicar minijail con PID y VFS namespaces=")
+		fmt.Println("======================================================================================")
+		fmt.Println("$ findmnt --output TARGET,SOURCE,VFS-OPTIONS")
+
+		informeCmd = exec.Command(execMap["minijail0"], //Path a minijail
+			"-p",               //PID namespace
+			"-v",               //Vamos a crear un nuevo VFS
+			"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
+			"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente con permiso de escritura
+			"-b", "/bin/findmnt", //Bindiamos el binario de findmnt
+			"-b", "/proc", //Bindiamos /proc porque findmnt la necesita
+			"-r",                                                    //Remonta /proc a readonly
+			"/bin/findmnt", "--output", "TARGET,SOURCE,VFS-OPTIONS") //Ejecutamos findmnt
+
+		informeCmd.Stdout = os.Stdout
+		informeErr = informeCmd.Run()
+		if informeErr != nil {
+			fmt.Println("Error: ", informeErr)
+		}
+
+		///////////////////////////////////////////////////////
+		////////////fin codigo para informe////////////////////
+		///////////////////////////////////////////////////////
+	*/
+	//NASM con namespace de todo tipo y color
+	nasmCmd := exec.Command(execMap["minijail0"], //Path a minijail
+		"-p",               //PID namespace
+		"-v",               //Vamos a crear un nuevo VFS
+		"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
+		"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente a si misma con permiso de escritura
+		"-b", "/usr/bin/nasm", //Bindiamos esto para tener el binario a NASM
+		"-b", "/proc", //Bindiamos /proc
+		"-r",                                                                                          //Remonta /proc a readonly
+		execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", randomFile+".asm", "-o", randomFile+".o") //Comando ejecutador de NASM
 
 	var stderr bytes.Buffer
-
 	nasmCmd.Stderr = &stderr
-
-	// nasmCmd.Stderr = os.Stderr
-	// nasmCmd.Stdin = os.Stdin
 	nasmCmd.Stdout = os.Stdout
+	nasmErr := nasmCmd.Start()
 
-	nasmErr := nasmCmd.Run()
-	// nasmErr := nasmCmd.Start()
-	// fmt.Println(nasmCmd.Process.Pid)
-	// nasmCmd.Wait()
-	fmt.Println(nasmErr)
-	if nasmErr != nil || !fileExists(path.Join(filepath, randomFile+".o")) {
-		if stderr.String() == "" {
-			stderr.WriteString("NASM execution failed")
-		}
-		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
-		res := ResponseObj{ConsoleOut: errorString}
-		deleteFiles(filepath, randomFile, &res)
+	if nasmErr != nil {
+		fmt.Println("Error starting NASM: ", nasmErr.Error())
+		res := ResponseObj{ConsoleOut: nasmErr.Error()}
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
-	//
-	fmt.Println("Program compiled")
 
-	// nasmPid := nasmCmd.Process.Pid
+	nasmPID := nasmCmd.Process.Pid
+	limitCPUTime(nasmPID, MAXCPUTIME)
 
-	// fmt.Println("\n\nNASM")
-	// printLibraries(nasmPid)
+	nasmErr = nasmCmd.Wait()
 
-	// nasmErr = nasmCmd.Wait()
-
-	linkingCmd := exec.Command(execMap["minijail0"], "-n", "-S", "../policies/ld.policy", execMap["ld"], "-nostdlib", "-static", "-o", randomFile, randomFile+".o")
-
-	// linkingCmd.Stderr = os.Stderr
-	// linkingCmd.Stdin = os.Stdin
-	// linkingCmd.Stdout = os.Stdout
-	nasmCmd.Stderr = &stderr
-	linkingErr := linkingCmd.Run()
-
-	if linkingErr != nil || !fileExists(path.Join(filepath, randomFile)) {
-		if stderr.String() == "" {
-			stderr.WriteString("Linker execution failed")
-		}
+	if nasmErr != nil {
+		fmt.Println("Error executing nasm: ", nasmErr)
+		fmt.Println(stderr.String())
 		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
 		res := ResponseObj{ConsoleOut: errorString}
-		deleteFiles(filepath, randomFile, &res)
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
-	fmt.Println("Program Linked")
 
-	// ldPid := linkingCmd.Process.Pid
+	if !fileExists(randomFile + ".o") {
+		fmt.Println("NASM execution finished correctly but didn't create expected file: " + randomFile + ".o")
+		res := ResponseObj{ConsoleOut: "NASM execution failed."}
+		deleteFiles(randomFolder, &res)
+		response(&w, res)
+		return
+	}
 
-	// fmt.Println("\n\nLINKER")
-	// printLibraries(ldPid)
+	fmt.Println("")
+	fmt.Println("Program compiled correctly")
 
-	// linkingCmd.Wait()
+	//LD con namespace de todo tipo y color
+	linkingCmd := exec.Command(execMap["minijail0"], //Path a minijail
+		"-p",                          //PID namespace
+		"-n",                          //No new priviligies
+		"-S", "../policies/ld.policy", //Setea las policies para LD
+		"-v",               //Vamos a crear un nuevo VFS
+		"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
+		"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente a si misma con permiso de escritura
+		"-b", "/usr/bin/ld", //Bindiamos esto para tener el binario a LD
+		"-b", "/proc", //Bindiamos /proc
+		"-r",                                                                     //Remonta /proc a readonly
+		execMap["ld"], "-nostdlib", "-static", "-o", randomFile, randomFile+".o") //Comando ejecutador de LD
 
-	fullPath := path.Join(filepath, randomFile)
+	linkingCmd.Stderr = &stderr
+	linkingCmd.Stdout = os.Stdout
 
-	exeCmd := exec.Command(execMap["microjail"], fullPath)
+	linkingErr := linkingCmd.Start()
+
+	if linkingErr != nil {
+		fmt.Println("Error starting LD: ", linkingErr.Error())
+		res := ResponseObj{ConsoleOut: linkingErr.Error()}
+		deleteFiles(randomFolder, &res)
+		response(&w, res)
+		return
+	}
+
+	linkerPID := linkingCmd.Process.Pid
+	limitCPUTime(linkerPID, MAXCPUTIME)
+
+	linkingErr = linkingCmd.Wait()
+
+	if linkingErr != nil {
+		fmt.Println("Error executing LD: ", linkingErr)
+		fmt.Println(stderr.String())
+		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
+		res := ResponseObj{ConsoleOut: errorString}
+		deleteFiles(randomFolder, &res)
+		response(&w, res)
+		return
+	}
+
+	if !fileExists(randomFile + ".o") {
+		fmt.Println("LD execution finished correctly but didn't create expected file: " + randomFile)
+		res := ResponseObj{ConsoleOut: "LD execution failed."}
+		deleteFiles(randomFolder, &res)
+		response(&w, res)
+		return
+	}
+
+	fmt.Println("Program linked correctly")
+
+	exeCmd := exec.Command(execMap["microjail"], randomFile)
 
 	exeCmd.Stderr = os.Stderr
 	exeCmd.Stdin = os.Stdin
@@ -584,14 +716,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	startErr := exeCmd.Start()
 
 	if startErr != nil {
+		fmt.Println("Error starting microjail: ", startErr.Error())
 		res := ResponseObj{ConsoleOut: startErr.Error()}
-		deleteFiles(filepath, randomFile, &res)
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
 
 	microjailPID := exeCmd.Process.Pid
-	fmt.Println(microjailPID)
 	limitCPUTime(microjailPID, MAXCPUTIME)
 
 	exeCmd.Wait()
@@ -600,7 +732,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if optErr != nil {
 		res := killProcess(microjailPID, optErr.Error())
-		deleteFiles(filepath, randomFile, &res)
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
@@ -609,7 +741,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	execErr := syscall.PtraceCont(microjailPID, 0)
 	if execErr != nil {
 		res := killProcess(microjailPID, execErr.Error())
-		deleteFiles(filepath, randomFile, &res)
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
@@ -618,14 +750,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	_, waitErr := syscall.Wait4(microjailPID, &ws, syscall.WALL, nil)
 	if waitErr != nil {
 		res := killProcess(microjailPID, waitErr.Error())
-		deleteFiles(filepath, randomFile, &res)
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
 
 	if !pidExists(microjailPID) {
 		res := ResponseObj{ConsoleOut: "Microjail error."}
-		deleteFiles(filepath, randomFile, &res)
+		deleteFiles(randomFolder, &res)
 		response(&w, res)
 		return
 	}
@@ -633,7 +765,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	responseObj := cellsLoop(&cellsData, microjailPID, &xmmFormat)
 
 	runtime.UnlockOSThread()
-	deleteFiles(filepath, randomFile, &responseObj)
+	deleteFiles(randomFolder, &responseObj)
 	fmt.Println(responseObj)
 	response(&w, responseObj)
 
@@ -644,6 +776,9 @@ func main() {
 
 	http.HandleFunc("/codeSave", codeSave)
 
+	fmt.Println("===============================")
+	fmt.Println("=Server listening on port 8080=")
+	fmt.Println("===============================")
 	http.ListenAndServe(":8080", nil)
 
 }

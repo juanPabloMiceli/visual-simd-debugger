@@ -52,6 +52,7 @@ body{
   z-index: 0;
   font-size: '15px';
   box-sizing: border-box;
+  font-family: monospace;
 }
 
 .topButtonsContainer{

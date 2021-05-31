@@ -1,7 +1,7 @@
 #Build from visual-simd-debugger/frontend
 
 #To build:
-#sudo docker build ./ -t visual-simd-front
+#sudo docker build ./ -t visual-simd-frontend
 
 #To run:
 #sudo docker run -d --rm --name v-simd-front --network host visual-simd-front
