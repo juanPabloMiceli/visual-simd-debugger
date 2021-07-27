@@ -7,10 +7,10 @@ lseek: 1
 mmap: 1
 brk: 1
 fcntl: 1
-unlink: 1
-chmod: 1
-umask: 1
+unlink: return 1
+chmod: return 1
+umask: return 1
 getrusage: 1
 openat: 1
-prlimit64: 1
+prlimit64: return 1
 exit_group: 1

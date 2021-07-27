@@ -71,7 +71,7 @@ let commands = (<div className='commandsContainer'>
                 <li style={{paddingTop: '8px'}}>/t: Base 2 en complemento A2.</li>
                 <li style={{paddingTop: '8px', paddingBottom: '8px'}}>/x: Base 16.</li>
             </ul>
-            <li style={{listStyleType: 'square', color: '#0A0', paddingBottom: '8px'}}><span style={{fontWeight: 'bold'}}>Registro: </span>Elegimos el registro a imprimir. Los registros validos van desde xmm0 hasta xmm15 inclusive. Este parámetro es obligatorio.</li>
+            <li style={{listStyleType: 'square', color: '#0A0', paddingBottom: '8px'}}><span style={{fontWeight: 'bold'}}>Registro: </span>Elegimos el registro a imprimir. Los registros válidos van desde xmm0 hasta xmm15 inclusive. Este parámetro es obligatorio.</li>
             <li style={{listStyleType: 'square', color: '#00A', paddingBottom: '8px'}}><span style={{fontWeight: 'bold'}}>Formato: </span>Elegimos el formato en el cual queremos subdividir el registro. Este parámetro es obligatorio. Los formatos posibles son:</li>
             <ul style={{color: '#00A'}}>
                 <li style={{paddingTop: '8px'}}>.v16_int8: El XMM se subdivide en 16 registros enteros de 8 bits cada uno.</li>

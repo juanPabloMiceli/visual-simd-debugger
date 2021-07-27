@@ -1,7 +1,8 @@
 section .data
   message: db "Primer celda", 10, 0
   emessage equ $ - message
-  global _start
+
+global _start
 
 section .text
   _start:
@@ -10,7 +11,7 @@ mov rax, 1
 mov rdi, 1
 mov rsi, message
 mov rdx, emessage
-;syscall
+syscall
 mov rax, 60
 mov rdi, 0
 syscall

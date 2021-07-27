@@ -6,7 +6,7 @@
 #To run:
 #sudo docker run -d --rm --name v-simd-back --network host visual-simd-back
 
-FROM golang:latest as builder
+FROM golang:1.15.10 as builder
 
 #Update system and install nasm
 #Then install git and libcap-dev because minijail needs it

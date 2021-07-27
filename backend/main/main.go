@@ -30,11 +30,12 @@ const (
 	//CHARS is a string containing all possible characters in filename
 	CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-0123456789."
 
-	//FILENAMELEN is the created filename length
-	FILENAMELEN = 10
+	//RANDOMBYTES is the number of bytes that will be encoded to the filename in base64.
+	//The filename length will be RANDOMBYTES*8/6
+	RANDOMBYTES = 12
 
 	//MAXBYTES is the maximum bytes the asm file can use
-	MAXBYTES = 30720 //30KBytes
+	MAXBYTES = 30720 //30KiBytes
 )
 
 // FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
@@ -473,7 +474,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	randomID, randErr := randomString(FILENAMELEN)
+	randomID, randErr := randomString(RANDOMBYTES)
 
 	if randErr != nil {
 		response(&w, ResponseObj{ConsoleOut: "Could't create file name properly. (Server error please notify)"})
@@ -482,7 +483,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	}
 
 	randomFolder := path.Join("/clients", randomID) //Cada usuario tiene una carpeta propia lo cual le va a dar aislamiento
-	randomFile := path.Join(randomFolder, randomID) //Cada usuario tiene una carpeta propia lo cual le va a dar aislamiento
+	randomFile := path.Join(randomFolder, randomID)
 	os.Mkdir(randomFolder, os.FileMode(0777))
 	fileErr := ioutil.WriteFile(randomFile+".asm", []byte(fileText), 0644)
 
@@ -592,15 +593,16 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	*/
 	//NASM con namespace de todo tipo y color
 	nasmCmd := exec.Command(execMap["minijail0"], //Path a minijail
-		"-p",               //PID namespace
+		"-p",                            //PID namespace
+		"-n",                            //No new priviligies
+		"-S", "../policies/nasm.policy", //Setea las policies para NASM
 		"-v",               //Vamos a crear un nuevo VFS
 		"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
 		"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente a si misma con permiso de escritura
 		"-b", "/usr/bin/nasm", //Bindiamos esto para tener el binario a NASM
 		"-b", "/proc", //Bindiamos /proc
-		"-r",                                                                                          //Remonta /proc a readonly
-		execMap["nasm"], "-f", "elf64", "-g", "-F", "DWARF", randomFile+".asm", "-o", randomFile+".o") //Comando ejecutador de NASM
-
+		"-r",                                                                     //Remonta /proc a readonly
+		execMap["nasm"], "-f", "elf64", randomFile+".asm", "-o", randomFile+".o") //Comando ejecutador de NASM
 	var stderr bytes.Buffer
 	nasmCmd.Stderr = &stderr
 	nasmCmd.Stdout = os.Stdout
@@ -683,6 +685,15 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if !fileExists(randomFile + ".o") {
 		fmt.Println("LD execution finished correctly but didn't create expected file: " + randomFile)
+		res := ResponseObj{ConsoleOut: "LD execution failed."}
+		deleteFiles(randomFolder, &res)
+		response(&w, res)
+		return
+	}
+
+	err := os.Chmod(randomFile, 0111)
+	if err != nil {
+		fmt.Println("Could not change permissions to executable: " + randomFile)
 		res := ResponseObj{ConsoleOut: "LD execution failed."}
 		deleteFiles(randomFolder, &res)
 		response(&w, res)
