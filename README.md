@@ -1,5 +1,9 @@
 # Visual SIMD Debugger
 
+Lenguajes soportados:
+
+[🇪🇸](/../../README.md) [🇬🇧](/../../readmes/README.en.md) [🇵🇹](/readmes/README.pt.md) [🇫🇷](/../readmes/README.fr.md) [🇮🇳](/../readmes/README.hi.md) 
+
 ## Introducción:
 
 Este es un entorno de desarrollo especialmente pensado para trabajar con instrucciones SIMD.
