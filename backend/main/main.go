@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/cellshandler"
-	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/xmmhandler"
+	"github.com/juanPabloMiceli/visual-simd-debugger/backend/cellshandler"
+	"github.com/juanPabloMiceli/visual-simd-debugger/backend/xmmhandler"
 )
 
 const (
