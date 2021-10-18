@@ -36,7 +36,7 @@ function SimdVisualizer(){
             <div>
                 <GitHubCorners
                     position="right"
-                    href="https://gitlab.com/juampi_miceli/visual-simd-debugger"
+                    href="https://github.com/juanPabloMiceli/visual-simd-debugger/"
                     target="_blank"
                 />
                 <div className="topButtonsContainer">
