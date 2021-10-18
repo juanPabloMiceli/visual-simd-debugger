@@ -14,34 +14,34 @@ FROM golang:1.15.10 as builder
 #Then download minijail
 WORKDIR /
 RUN \
-apt-get update && \
-apt-get install -y apt-utils && \
-apt-get install nasm && \
-apt-get install -y libcap-dev && \ 
-apt-get install -y git && \
-apt-get install -y libseccomp-dev && \
-git clone https://android.googlesource.com/platform/external/minijail ./minijail && \
-mkdir clients && \
+    apt-get update && \
+    apt-get install -y apt-utils && \
+    apt-get install nasm && \
+    apt-get install -y libcap-dev && \ 
+    apt-get install -y git && \
+    apt-get install -y libseccomp-dev && \
+    git clone https://android.googlesource.com/platform/external/minijail ./minijail && \
+    mkdir clients && \
 
-#Installing minijail
-WORKDIR /minijail
+    #Installing minijail
+    WORKDIR /minijail
 
 RUN \
-make LIBDIR=/lib64 && \
-cp libminijail.so /lib64/ && \
-cp libminijailpreload.so /lib64/ && \
-cp minijail0 /usr/bin/
+    make LIBDIR=/lib64 && \
+    cp libminijail.so /lib64/ && \
+    cp libminijailpreload.so /lib64/ && \
+    cp minijail0 /usr/bin/
 
 WORKDIR /go/src
 #Copy all dependencies
-COPY ./gitlab.com/juampi_miceli/visual-simd-debugger/backend ./gitlab.com/juampi_miceli/visual-simd-debugger/backend
+COPY ./github.com/juanPabloMiceli/visual-simd-debugger/backend ./github.com/juanPabloMiceli/visual-simd-debugger/backend
 
 #Installing microjail
-WORKDIR /go/src/gitlab.com/juampi_miceli/visual-simd-debugger/backend/microjail
+WORKDIR /go/src/github.com/juanPabloMiceli/visual-simd-debugger/backend/microjail
 RUN make docker-install
 
 
-WORKDIR /go/src/gitlab.com/juampi_miceli/visual-simd-debugger/backend/main
+WORKDIR /go/src/github.com/juanPabloMiceli/visual-simd-debugger/backend/main
 #Build go exectutable
 RUN go build -o http
 

@@ -1,5 +1,9 @@
 # Visual SIMD Debugger
 
+Lenguajes soportados:
+
+[🇪🇸](./README.md)[🇬🇧](./readmeTranslations/README.en.md)[🇵🇹](./readmeTranslations/README.pt.md)[🇫🇷](./readmeTranslations/README.fr.md)[🇮🇳](./readmeTranslations/README.hi.md)
+
 ## Introducción:
 
 Este es un entorno de desarrollo especialmente pensado para trabajar con instrucciones SIMD.
@@ -54,11 +58,13 @@ A su vez, los formatos de números enteros se pueden imprimir en las siguientes 
 
 Para solicitar que se imprime un registro se debe utilizar el mismo formato que se utiliza en GDB:
 
-`;print<formato base numérica> xmm<registro a imprimir><formato de bits>`
+`;print<NB> xmm<PR><BF>`
 
-Donde el formato de la base numérica es opcional, por defecto esta es `/d`. Pero este valor por defecto se actualiza al usar la instrucción `;print`.
+Donde `NB` es el formato de la base numérica y es opcional, por defecto esta es `/d`. Pero este valor por defecto se actualiza al usar la instrucción `;print`.
 
-El formato de los bits también es opcional y su valor por defecto es `.v16_int8`. El mismo se actualiza al usar la instrucción `;print`. Se puede setear este formato para todos los registros a la vez omitiendo el valor del registro a imprimir.
+`PR` es el registro a imprimir.
+
+`BF` es el formato de los bits y también es opcional y su valor por defecto es `.v16_int8`. El mismo se actualiza al usar la instrucción `;print`. Se puede setear este formato para todos los registros a la vez omitiendo el valor del registro a imprimir.
 
 `;print` es análogo a `;p`
 
