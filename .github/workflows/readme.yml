@@ -14,31 +14,19 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 12.x
-      - name: Adding README - Chinese Simplified
-        uses: juanPabloMiceli/translate-readme@main
-        with:
-          LANG: zh-CN
-      - name: Adding README - Chinese Traditional
-        uses: juanPabloMiceli/translate-readme@main
-        with:
-          LANG: zh-TW
       - name: Adding README - Hindi
-        uses: juanPabloMiceli/translate-readme@main
+        uses: dephraiim/translate-readme@main
         with:
           LANG: hi
-      - name: Adding README - Arabic
-        uses: juanPabloMiceli/translate-readme@main
-        with:
-          LANG: ar
       - name: Adding README - French
-        uses: juanPabloMiceli/translate-readme@main
+        uses: dephraiim/translate-readme@main
         with:
           LANG: fr
       - name: Adding README - English
-        uses: juanPabloMiceli/translate-readme@main
+        uses: dephraiim/translate-readme@main
         with:
           LANG: en
       - name: Adding README - Portuguese
-        uses: juanPabloMiceli/translate-readme@main
+        uses: dephraiim/translate-readme@main
         with:
           LANG: pt
