@@ -2,7 +2,7 @@
 
 Lenguajes soportados:
 
-[🇪🇸](/README.md)[🇬🇧](/readmeTranslations/README.en.md)[🇵🇹](/readmeTranslations/README.pt.md)[🇫🇷](/../readmeTranslations/README.fr.md)[🇮🇳](/../readmeTranslations/README.hi.md)
+[🇪🇸](./README.md)[🇬🇧](./readmeTranslations/README.en.md)[🇵🇹](./readmeTranslations/README.pt.md)[🇫🇷](./readmeTranslations/README.fr.md)[🇮🇳](./readmeTranslations/README.hi.md)
 
 ## Introducción:
 
