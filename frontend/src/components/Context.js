@@ -179,7 +179,7 @@ function Provider({children}){
 
     function submitCode(){
         let url = new URL(window.location.href)
-        url.port = "8080"
+        url.port = "80"
 
         let requestObj = getRequestObj(CellsData)
         
