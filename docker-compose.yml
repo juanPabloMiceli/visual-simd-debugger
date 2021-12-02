@@ -3,20 +3,12 @@ services:
   backend:
     build:
       context: .
+      #network: host is for local dev. network: 0.0.0.0 is for deploy 
       network: host
+      # network: 0.0.0.0
     image: juampi1998/visual-simd-backend:latest
     ports:
       - 8080:8080
     security_opt:
       - seccomp:unconfined
     privileged: true
-    
-
-  frontend:
-    build:
-      context: .
-      network: host
-    image: juampi1998/visual-simd-frontend:latest
-    ports:
-      - 3000:3000
-  
