@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitlab.com/juampi_miceli/visual-simd-debugger/backend/xmmhandler"
+	"github.com/juanPabloMiceli/visual-simd-debugger/backend/xmmhandler"
 )
 
 //CellData is the data of the cell that is received from the frontend
