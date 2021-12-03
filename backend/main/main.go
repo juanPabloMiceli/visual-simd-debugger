@@ -17,10 +17,11 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
-	"unsafe"
 
-	"github.com/juanPabloMiceli/visual-simd-debugger/backend/cellshandler"
-	"github.com/juanPabloMiceli/visual-simd-debugger/backend/xmmhandler"
+	"../cellshandler"
+	"../models"
+	"../utils"
+	"../xmmhandler"
 )
 
 const (
@@ -38,81 +39,8 @@ const (
 	MAXBYTES = 30720 //30KiBytes
 )
 
-// FPRegs represents a user_fpregs_struct in /usr/include/x86_64-linux-gnu/sys/user.h.
-type FPRegs struct {
-	Cwd      uint16     // Control Word
-	Swd      uint16     // Status Word
-	Ftw      uint16     // Tag Word
-	Fop      uint16     // Last Instruction Opcode
-	Rip      uint64     // Instruction Pointer
-	Rdp      uint64     // Data Pointer
-	Mxcsr    uint32     // MXCSR Register State
-	MxcrMask uint32     // MXCR Mask
-	StSpace  [32]uint32 // 8*16 bytes for each FP-reg = 128 bytes
-	XMMSpace [256]byte  // 16*16 bytes for each XMM-reg = 256 bytes
-	_        [24]uint32 // padding
-}
-
-//XMMData contains the data that has to be delivered to the frontend for each XMM register
-type XMMData struct {
-	XmmID     string
-	XmmValues []string
-}
-
-//CellRegisters contains the different XMMData in a cell.
-type CellRegisters []XMMData
-
-//Contains returns true if CellRegisters contains XMMData input
-func (cellRegs *CellRegisters) Contains(newXmmData *XMMData) bool {
-
-	for _, xmmData := range *cellRegs {
-		if xmmData.XmmID == newXmmData.XmmID {
-			return true
-		}
-	}
-	return false
-}
-
-//Estoy adentro de docker?
-func isRunningInDockerContainer() bool {
-	// docker creates a .dockerenv file at the root
-	// of the directory tree inside the container.
-	// if this file exists then the viewer is running
-	// from inside a container so return true
-
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return true
-	}
-
-	return false
-}
-
-//ResponseObj is the object send to the client as a JSON.
-//This contains the console error and the info of every register to print.
-type ResponseObj struct {
-	ConsoleOut string
-	CellRegs   []CellRegisters //Could be a slice of any of int or float types
-}
-
-func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-}
-
-func response(w *http.ResponseWriter, obj interface{}) {
-
-	responseJSON, err := json.Marshal(obj)
-
-	if err != nil {
-		panic(err)
-	}
-
-	(*w).Header().Set("Content-Type", "application/json")
-	(*w).WriteHeader(http.StatusOK)
-	(*w).Write(responseJSON)
-}
-
-func getRequestedRegisters(requests *cellshandler.XmmRequests, xmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) CellRegisters {
-	cellRegisters := CellRegisters{}
+func getRequestedRegisters(requests *cellshandler.XmmRequests, xmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) models.CellRegisters {
+	cellRegisters := models.CellRegisters{}
 
 	for _, request := range *requests {
 		// fmt.Println("Request: ", request.PrintFormat)
@@ -120,7 +48,7 @@ func getRequestedRegisters(requests *cellshandler.XmmRequests, xmmHandler *xmmha
 			request.PrintFormat = xmmFormat.DefaultPrintingFormat[request.XmmNumber]
 		}
 		// fmt.Println("Final request: ", request.PrintFormat)
-		xmmData := XMMData{
+		xmmData := models.XMMData{
 			XmmID:     request.XmmID,
 			XmmValues: xmmHandler.GetXMMData(request.XmmNumber, request.DataFormat, request.PrintFormat)}
 
@@ -139,8 +67,8 @@ func containsInt(elem int, s []int) bool {
 	return false
 }
 
-func getChangedRegisters(hiddenRegs *cellshandler.HiddenInCell, oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) CellRegisters {
-	cellRegisters := CellRegisters{}
+func getChangedRegisters(hiddenRegs *cellshandler.HiddenInCell, oldXmmHandler *xmmhandler.XMMHandler, newXmmHandler *xmmhandler.XMMHandler, xmmFormat *cellshandler.XMMFormat) models.CellRegisters {
+	cellRegisters := models.CellRegisters{}
 
 	for index := range oldXmmHandler.Xmm {
 		if !containsInt(index, *hiddenRegs) {
@@ -148,7 +76,7 @@ func getChangedRegisters(hiddenRegs *cellshandler.HiddenInCell, oldXmmHandler *x
 			newXmm := newXmmHandler.Xmm[index]
 			if !oldXmm.Equals(newXmm) {
 				xmmString := "XMM" + strconv.Itoa(index)
-				xmmData := XMMData{
+				xmmData := models.XMMData{
 					XmmID:     xmmString,
 					XmmValues: newXmmHandler.GetXMMData(index, xmmFormat.DefaultDataFormat[index], xmmFormat.DefaultPrintingFormat[index])}
 				cellRegisters = append(cellRegisters, xmmData)
@@ -160,9 +88,9 @@ func getChangedRegisters(hiddenRegs *cellshandler.HiddenInCell, oldXmmHandler *x
 }
 
 func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
-	var fpRegs FPRegs
+	var fpRegs models.FPRegs
 
-	err := getFPRegs(pid, &fpRegs)
+	err := utils.GetFPRegs(pid, &fpRegs)
 	fmt.Printf("\nAddress fp: %p\n", &fpRegs)
 
 	if err != nil {
@@ -174,7 +102,7 @@ func getXMMRegs(pid int) (xmmhandler.XMMHandler, error) {
 	return xmmhandler.NewXMMHandler(&xmmSlice), err
 }
 
-func joinWithPriority(cellRegs1 *CellRegisters, cellRegs2 *CellRegisters) CellRegisters {
+func joinWithPriority(cellRegs1 *models.CellRegisters, cellRegs2 *models.CellRegisters) models.CellRegisters {
 
 	resCellRegisters := *cellRegs1
 
@@ -228,85 +156,21 @@ func updatePrintFormat(cellsData *cellshandler.CellsData, cellIndex int, xmmForm
 
 }
 
-func getFPRegs(pid int, data *FPRegs) error {
-	_, _, errno := syscall.RawSyscall6(uintptr(syscall.SYS_PTRACE),
-		uintptr(syscall.PTRACE_GETFPREGS),
-		uintptr(pid),
-		uintptr(0),
-		uintptr(unsafe.Pointer(data)),
-		0,
-		0)
+func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandler.XMMFormat) models.ResponseObj {
 
-	var err error
-	if errno != 0 {
-		err = errno
-		return err
-	}
-	return nil
-}
-
-func prLimit(pid int, limit uintptr, rlimit *syscall.Rlimit) error {
-	_, _, errno := syscall.RawSyscall6(syscall.SYS_PRLIMIT64,
-		uintptr(pid),
-		limit,
-		uintptr(unsafe.Pointer(rlimit)),
-		0, 0, 0)
-	var err error
-	if errno != 0 {
-		err = errno
-		return err
-	}
-	return nil
-}
-
-func limitFileSize(pid int, maxSize uint64) {
-	var rlimit syscall.Rlimit
-
-	rlimit.Cur = maxSize
-	rlimit.Max = maxSize
-	prLimit(pid, syscall.RLIMIT_FSIZE, &rlimit)
-}
-
-func limitCPUTime(pid int, maxTime uint64) {
-	var rlimit syscall.Rlimit
-
-	rlimit.Cur = maxTime
-	rlimit.Max = maxTime
-	prLimit(pid, syscall.RLIMIT_CPU, &rlimit)
-}
-
-func killProcess(pid int, err string) ResponseObj {
-	fmt.Println("Killing Process")
-	var ws syscall.WaitStatus
-	_, _, killErr := syscall.RawSyscall6(syscall.SYS_KILL,
-		uintptr(pid),
-		uintptr(syscall.SIGKILL),
-		0, 0, 0, 0)
-	syscall.Wait4(pid, &ws, syscall.WALL, nil)
-	if pidExists(pid) {
-		return ResponseObj{ConsoleOut: err + "\nCould not kill process: " + strconv.Itoa(pid) + "\nError: " + killErr.Error()}
-
-	}
-	fmt.Println("Process killed succesfully.")
-
-	return ResponseObj{ConsoleOut: err + "\nProcess killed succesfully."}
-}
-
-func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandler.XMMFormat) ResponseObj {
-
-	res := ResponseObj{CellRegs: make([]CellRegisters, 0)}
+	res := models.ResponseObj{CellRegs: make([]models.CellRegisters, 0)}
 	cellIndex := 0
 
 	oldXmmHandler, getErr := getXMMRegs(pid)
 	if getErr != nil {
-		return killProcess(pid, "Could not get XMM registers.")
+		return utils.KillProcess(pid, "Could not get XMM registers.")
 	}
 	var ws syscall.WaitStatus
 
 	for cellIndex < len(cellsData.Data) {
 		newXmmHandler, getErr := getXMMRegs(pid)
 		if getErr != nil {
-			return killProcess(pid, "Could not get XMM registers.")
+			return utils.KillProcess(pid, "Could not get XMM registers.")
 		}
 
 		if cellIndex != 0 {
@@ -326,16 +190,16 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 
 		execErr := syscall.PtraceCont(pid, 0)
 		if execErr != nil {
-			return killProcess(pid, execErr.Error())
+			return utils.KillProcess(pid, execErr.Error())
 		}
 
 		_, waitErr := syscall.Wait4(pid, &ws, syscall.WALL, nil)
 
 		if waitErr != nil {
-			return killProcess(pid, waitErr.Error())
+			return utils.KillProcess(pid, waitErr.Error())
 		}
-		if !pidExists(pid) && cellIndex < len(cellsData.Data)-1 {
-			return killProcess(pid, "Something stopped the program.\n")
+		if !utils.PidExists(pid) && cellIndex < len(cellsData.Data)-1 {
+			return utils.KillProcess(pid, "Something stopped the program.\n")
 		}
 
 	}
@@ -343,44 +207,14 @@ func cellsLoop(cellsData *cellshandler.CellsData, pid int, xmmFormat *cellshandl
 	fmt.Printf("Exited: %v\n", ws.Exited())
 	fmt.Printf("Exited status: %v\n", ws.ExitStatus())
 
-	if pidExists(pid) {
-		aux := killProcess(pid, "Something went wrong, program did not reach the end.")
+	if utils.PidExists(pid) {
+		aux := utils.KillProcess(pid, "Something went wrong, program did not reach the end.")
 		res.ConsoleOut = aux.ConsoleOut
 	} else {
 		res.ConsoleOut = "Exited status: " + strconv.Itoa(ws.ExitStatus())
 	}
 
 	return res
-}
-
-func pidExists(pid int) bool {
-	_, err := ioutil.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
-	return err == nil
-}
-
-func deleteFile(filePath string) error {
-	if fileExists(filePath) {
-		delExe := exec.Command("rm", filePath)
-		delErr := delExe.Run()
-		return delErr
-	}
-
-	return nil
-
-}
-
-func deleteFiles(folderPath string, res *ResponseObj) {
-	err := os.RemoveAll(folderPath)
-
-	if err != nil {
-		fmt.Printf("Could not remove folder %s. Error: %s\n", folderPath, err.Error())
-		res.ConsoleOut += "\nCould not remove your files from server, please notify. Error: " + err.Error()
-	}
-}
-
-func fileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return err == nil
 }
 
 func getCellsData(req *http.Request) (cellshandler.CellsData, error) {
@@ -395,24 +229,35 @@ func getCellsData(req *http.Request) (cellshandler.CellsData, error) {
 	return cellsData, decodeErr
 }
 
-func printJSONInput(req *http.Request) {
+func printJSONInput(req *http.Request) error {
 	var bodyBytes []byte
+	var err error
 	if req.Body != nil {
-		bodyBytes, _ = ioutil.ReadAll(req.Body)
+		bodyBytes, err = ioutil.ReadAll(req.Body)
+	}
+
+	if err != nil {
+		return err
 	}
 
 	var jsonMap map[string]interface{}
-	err := json.Unmarshal(bodyBytes, &jsonMap)
+	err = json.Unmarshal(bodyBytes, &jsonMap)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	jsonData, _ := json.MarshalIndent(jsonMap, "", "\t")
+	jsonData, err := json.MarshalIndent(jsonMap, "", "\t")
+
+	if err != nil {
+		return err
+	}
 
 	fmt.Println(string(jsonData))
 
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	return nil
 }
 
 func checkExecutables(paths ...string) (map[string]string, []string) {
@@ -443,21 +288,25 @@ func randomString(n int) (string, error) {
 
 func codeSave(w http.ResponseWriter, req *http.Request) {
 
-	limitFileSize(syscall.Getpid(), MAXBYTES)
+	utils.LimitFileSize(syscall.Getpid(), MAXBYTES)
 
-	enableCors(&w)
+	utils.EnableCors(&w)
 
-	printJSONInput(req)
+	err := printJSONInput(req)
 
+	if err != nil {
+		utils.Response(&w, models.ResponseObj{ConsoleOut: "The json received was mega rancio."})
+		return
+	}
 	xmmFormat := cellshandler.NewXMMFormat()
-	cellsData, decodeErr := getCellsData(req)
-	if decodeErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't read data from the client properly."})
+	cellsData, err := getCellsData(req)
+	if err != nil {
+		utils.Response(&w, models.ResponseObj{ConsoleOut: "Could't read data from the client properly."})
 		return
 	}
 	if cellsData.HandleCellsData(&xmmFormat) {
 
-		response(&w, ResponseObj{ConsoleOut: "Please insert some code."})
+		utils.Response(&w, models.ResponseObj{ConsoleOut: "Please insert some code."})
 		return
 	}
 
@@ -466,18 +315,18 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	execMap, missingPaths := checkExecutables("nasm", "minijail0", "ld", "microjail")
 
 	if len(missingPaths) > 0 {
-		responseObj := ResponseObj{ConsoleOut: "Could't find next executable paths:"}
+		responseObj := models.ResponseObj{ConsoleOut: "Could't find next executable paths:"}
 		for _, path := range missingPaths {
 			responseObj.ConsoleOut += "\n* " + path
 		}
-		response(&w, responseObj)
+		utils.Response(&w, responseObj)
 		return
 	}
 
 	randomID, randErr := randomString(RANDOMBYTES)
 
 	if randErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't create file name properly. (Server error please notify)"})
+		utils.Response(&w, models.ResponseObj{ConsoleOut: "Could't create file name properly. (Server error please notify)"})
 		fmt.Println("Error creating random file: ", randErr)
 		return
 	}
@@ -488,7 +337,7 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	fileErr := ioutil.WriteFile(randomFile+".asm", []byte(fileText), 0644)
 
 	if fileErr != nil {
-		response(&w, ResponseObj{ConsoleOut: "Could't create file properly. Maybe the file is greater than 30Kb."})
+		utils.Response(&w, models.ResponseObj{ConsoleOut: "Could't create file properly. Maybe the file is greater than 30Kb."})
 		fmt.Println("Error creating asm file. Maybe the file is greater than 30Kb. Error: ", fileErr)
 		return
 	}
@@ -501,96 +350,13 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 	fileSize := fileInfo.Size()
 
 	if fileSize > MAXBYTES {
-		res := ResponseObj{ConsoleOut: "Text file must not be greater than 30Kb."}
+		res := models.ResponseObj{ConsoleOut: "Text file must not be greater than 30Kb."}
 		fmt.Println("File is larger than 30Kb. Aborting.")
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
-	/*
-		////////////////////////////////////////////////////////
-		///////////inicio codigo para informe///////////////////
-		////////////////////////////////////////////////////////
-
-		//Empezamos corriendo PS sin namespace
-		fmt.Println("")
-		fmt.Println("=============================================================")
-		fmt.Println("=Procesos visibles para NASM/LD sin aplicar ningun namespace=")
-		fmt.Println("=============================================================")
-		fmt.Println("$ ps -aux")
-		informeCmd := exec.Command("/bin/ps", "-aux") //Ejecutamos PS
-
-		informeCmd.Stdout = os.Stdout
-		informeErr := informeCmd.Run()
-		if informeErr != nil {
-			fmt.Println("Error: ", informeErr)
-		}
-
-		//Ahora corremos findmnt sin namespace
-		fmt.Println("")
-		fmt.Println("================================================================")
-		fmt.Println("=Filesystems visibles para NASM/LD sin aplicar ningun namespace=")
-		fmt.Println("================================================================")
-		fmt.Println("$ findmnt --output TARGET,SOURCE,VFS-OPTIONS")
-
-		informeCmd = exec.Command("/bin/findmnt", "--output", "TARGET,SOURCE,VFS-OPTIONS") //Ejecutamos findmnt
-
-		informeCmd.Stdout = os.Stdout
-		informeErr = informeCmd.Run()
-		if informeErr != nil {
-			fmt.Println("Error: ", informeErr)
-		}
-
-		//Corremos PS con el namespace
-		fmt.Println("")
-		fmt.Println("===================================================================================")
-		fmt.Println("=Procesos visibles para NASM/LD luego de aplicar minijail con PID y VFS namespaces=")
-		fmt.Println("===================================================================================")
-		fmt.Println("$ ps -aux")
-		informeCmd = exec.Command(execMap["minijail0"], //Path a minijail
-			"-p",               //PID namespace
-			"-v",               //Vamos a crear un nuevo VFS
-			"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
-			"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente con permiso de escritura
-			"-b", "/bin/ps", //Bindiamos el binario de PS
-			"-b", "/proc", //Bindiamos /proc porque PS lo necesita
-			"-r",              //Remonta /proc a readonly
-			"/bin/ps", "-aux") //Ejecutamos PS
-
-		informeCmd.Stdout = os.Stdout
-		informeErr = informeCmd.Run()
-		if informeErr != nil {
-			fmt.Println("Error: ", informeErr)
-		}
-
-		//Corremos findmnt con el namespace
-		fmt.Println("")
-		fmt.Println("======================================================================================")
-		fmt.Println("=Filesystems visibles para NASM/LD luego de aplicar minijail con PID y VFS namespaces=")
-		fmt.Println("======================================================================================")
-		fmt.Println("$ findmnt --output TARGET,SOURCE,VFS-OPTIONS")
-
-		informeCmd = exec.Command(execMap["minijail0"], //Path a minijail
-			"-p",               //PID namespace
-			"-v",               //Vamos a crear un nuevo VFS
-			"-P", "/var/empty", //Hacemos un pivot_root a /var/empty
-			"-b", fmt.Sprintf("%s,,1", randomFolder), // Bindeamos la carpeta del cliente con permiso de escritura
-			"-b", "/bin/findmnt", //Bindiamos el binario de findmnt
-			"-b", "/proc", //Bindiamos /proc porque findmnt la necesita
-			"-r",                                                    //Remonta /proc a readonly
-			"/bin/findmnt", "--output", "TARGET,SOURCE,VFS-OPTIONS") //Ejecutamos findmnt
-
-		informeCmd.Stdout = os.Stdout
-		informeErr = informeCmd.Run()
-		if informeErr != nil {
-			fmt.Println("Error: ", informeErr)
-		}
-
-		///////////////////////////////////////////////////////
-		////////////fin codigo para informe////////////////////
-		///////////////////////////////////////////////////////
-	*/
 	//NASM con namespace de todo tipo y color
 	nasmCmd := exec.Command(execMap["minijail0"], //Path a minijail
 		"-p",                            //PID namespace
@@ -610,14 +376,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if nasmErr != nil {
 		fmt.Println("Error starting NASM: ", nasmErr.Error())
-		res := ResponseObj{ConsoleOut: nasmErr.Error()}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: nasmErr.Error()}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
 	nasmPID := nasmCmd.Process.Pid
-	limitCPUTime(nasmPID, MAXCPUTIME)
+	utils.LimitCPUTime(nasmPID, MAXCPUTIME)
 
 	nasmErr = nasmCmd.Wait()
 
@@ -625,17 +391,17 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Error executing nasm: ", nasmErr)
 		fmt.Println(stderr.String())
 		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
-		res := ResponseObj{ConsoleOut: errorString}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: errorString}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
-	if !fileExists(randomFile + ".o") {
+	if !utils.FileExists(randomFile + ".o") {
 		fmt.Println("NASM execution finished correctly but didn't create expected file: " + randomFile + ".o")
-		res := ResponseObj{ConsoleOut: "NASM execution failed."}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: "NASM execution failed."}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
@@ -662,14 +428,14 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if linkingErr != nil {
 		fmt.Println("Error starting LD: ", linkingErr.Error())
-		res := ResponseObj{ConsoleOut: linkingErr.Error()}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: linkingErr.Error()}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
 	linkerPID := linkingCmd.Process.Pid
-	limitCPUTime(linkerPID, MAXCPUTIME)
+	utils.LimitCPUTime(linkerPID, MAXCPUTIME)
 
 	linkingErr = linkingCmd.Wait()
 
@@ -677,26 +443,26 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Error executing LD: ", linkingErr)
 		fmt.Println(stderr.String())
 		errorString := strings.ReplaceAll(stderr.String(), randomFile, "output")
-		res := ResponseObj{ConsoleOut: errorString}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: errorString}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
-	if !fileExists(randomFile + ".o") {
+	if !utils.FileExists(randomFile + ".o") {
 		fmt.Println("LD execution finished correctly but didn't create expected file: " + randomFile)
-		res := ResponseObj{ConsoleOut: "LD execution failed."}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: "LD execution failed."}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
-	err := os.Chmod(randomFile, 0111)
+	err = os.Chmod(randomFile, 0111)
 	if err != nil {
 		fmt.Println("Could not change permissions to executable: " + randomFile)
-		res := ResponseObj{ConsoleOut: "LD execution failed."}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: "LD execution failed."}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
@@ -714,57 +480,57 @@ func codeSave(w http.ResponseWriter, req *http.Request) {
 
 	if startErr != nil {
 		fmt.Println("Error starting microjail: ", startErr.Error())
-		res := ResponseObj{ConsoleOut: startErr.Error()}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := models.ResponseObj{ConsoleOut: startErr.Error()}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
 	microjailPID := exeCmd.Process.Pid
-	limitCPUTime(microjailPID, MAXCPUTIME)
+	utils.LimitCPUTime(microjailPID, MAXCPUTIME)
 
 	exeCmd.Wait()
 
 	optErr := syscall.PtraceSetOptions(microjailPID, 0x100000|syscall.PTRACE_O_TRACEEXEC) //0x100000 = PTRACE_O_EXITKILL, 0x200000 = PTRACE_O_SUSPEND_SECCOMP
 
 	if optErr != nil {
-		res := killProcess(microjailPID, optErr.Error())
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := utils.KillProcess(microjailPID, optErr.Error())
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
 	//One continue such that the C execve is made
 	execErr := syscall.PtraceCont(microjailPID, 0)
 	if execErr != nil {
-		res := killProcess(microjailPID, execErr.Error())
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := utils.KillProcess(microjailPID, execErr.Error())
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
 	var ws syscall.WaitStatus
 	_, waitErr := syscall.Wait4(microjailPID, &ws, syscall.WALL, nil)
 	if waitErr != nil {
-		res := killProcess(microjailPID, waitErr.Error())
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+		res := utils.KillProcess(microjailPID, waitErr.Error())
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
-	if !pidExists(microjailPID) {
-		res := ResponseObj{ConsoleOut: "Microjail error."}
-		deleteFiles(randomFolder, &res)
-		response(&w, res)
+	if !utils.PidExists(microjailPID) {
+		res := models.ResponseObj{ConsoleOut: "Microjail error."}
+		utils.DeleteFiles(randomFolder, &res)
+		utils.Response(&w, res)
 		return
 	}
 
 	responseObj := cellsLoop(&cellsData, microjailPID, &xmmFormat)
 
 	runtime.UnlockOSThread()
-	deleteFiles(randomFolder, &responseObj)
+	utils.DeleteFiles(randomFolder, &responseObj)
 	fmt.Println(responseObj)
-	response(&w, responseObj)
+	utils.Response(&w, responseObj)
 
 }
 
